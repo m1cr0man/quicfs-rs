@@ -1,0 +1,50 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"terminal.integrated.profiles.linux": {
+			"Nix Shell": {
+				"path": "nix-shell",
+				"icon": "terminal-linux",
+			},
+		},
+		"terminal.integrated.defaultProfile.linux": "Nix Shell",
+		"debug.allowBreakpointsEverywhere": true,
+		"rust-analyzer.debug.engine": "vadimcn.vscode-lldb",
+		"nixEnvSelector.nixFile": "${workspaceRoot}/shell.nix",
+	},
+	"launch": {
+		"version": "0.2.0",
+		"configurations": [
+			{
+				"name": "Debug executable 'quicfs-rs'",
+				"type": "lldb",
+				"request": "launch",
+				"cargo": {
+					"args": [
+						"build",
+						"--bin=quicfs-rs",
+						"--package=quicfs-rs"
+					],
+					"filter": {
+						"name": "quicfs-rs",
+						"kind": "bin"
+					}
+				},
+				"args": [],
+				"cwd": "${workspaceFolder}"
+			}
+		]
+	},
+	"extensions": {
+		"recommendations": [
+			"arrterian.nix-env-selector",
+			"matklad.rust-analyzer",
+			"bbenoist.nix",
+			"vadimcn.vscode-lldb"
+		]
+	}
+}
