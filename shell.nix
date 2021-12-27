@@ -13,5 +13,8 @@ mkShell {
     })
     lldb
     rust-analyzer
+    cmake
+    libev
+    uthash
   ];
 }

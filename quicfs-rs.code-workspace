@@ -32,7 +32,7 @@
 					"filter": {
 						"name": "quicfs-rs",
 						"kind": "bin"
-					}
+					},
 				},
 				"args": [],
 				"cwd": "${workspaceFolder}"

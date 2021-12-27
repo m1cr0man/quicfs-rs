@@ -6,3 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+clap = "~2.34"
+ring = "0.16"
+log = { version = "0.4", features = ["std"]}
+mio = "0.6.0"
+quiche = "0.10"
+url = "2.2"
