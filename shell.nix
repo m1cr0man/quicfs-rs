@@ -1,10 +1,9 @@
 let
-    rustVersion = "1.57.0";
-    rustOverlayRev = "1efeb891b85c70ded412eb78a04bccb9badb14c6";
-    rustOverlaySrc = builtins.fetchTarball "https://github.com/oxalica/rust-overlay/archive/${rustOverlayRev}.tar.gz";
-in { pkgs ? import <nixpkgs> {
-    overlays = [ (import rustOverlaySrc) ];
-} }:
+  rustVersion = "1.57.0";
+  defaultPkgs = import (builtins.getFlake "nixpkgs") {
+    overlays = [ (builtins.getFlake "github:oxalica/rust-overlay").overlay ];
+  };
+in { pkgs ? defaultPkgs }:
 with pkgs;
 mkShell {
   buildInputs = [
