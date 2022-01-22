@@ -94,7 +94,7 @@ fn do_receive(conn: &mut Connection, socket: &mio::net::UdpSocket) -> Result<usi
 pub struct QuicClient {
     url: Url,
     bind_addr: SocketAddr,
-    poll: Option<mio::Poll>,
+    poll: mio::Poll,
     socket: Option<mio::net::UdpSocket>,
     conn: Option<std::pin::Pin<Box<Connection>>>,
     http3_conn: Option<h3::Connection>,
@@ -108,18 +108,18 @@ impl QuicClient {
             Err(err) => return_err_boxed!(err),
         };
 
-        // Set up the event loop.
-        let poll = mio::Poll::new().unwrap();
-        poll.register(
-            &socket,
-            SOCKET_TOKEN,
-            mio::Ready::readable() | mio::Ready::writable(),
-            mio::PollOpt::edge(),
-        )
-        .unwrap();
+        // Register the socket with the event loop.
+        self.poll
+            .register(
+                &socket,
+                SOCKET_TOKEN,
+                mio::Ready::readable() | mio::Ready::writable(),
+                mio::PollOpt::edge(),
+            )
+            .unwrap();
 
-        // Create the configuration for the QUIC connections.
-        let mut config = crate::quic::get_config();
+        // Create the configuration for the QUIC connection.
+        let mut config = crate::quic::get_config_client();
 
         // Generate a random source connection ID for the connection.
         let mut scid = [0; quiche::MAX_CONN_ID_LEN];
@@ -141,6 +141,7 @@ impl QuicClient {
             hex_dump(&scid)
         );
 
+        // TODO why was this commented out?
         // let writes = match do_send(&conn, &socket) {
         //     Some(w) => w,
         //     Err(err) => return Err(err),
@@ -149,7 +150,6 @@ impl QuicClient {
         // debug!("Wrote {} packets during connection", writes);
 
         self.socket = Some(socket);
-        self.poll = Some(poll);
         self.conn = Some(conn);
         Ok(self)
     }
@@ -217,7 +217,7 @@ impl QuicClient {
         }
 
         let socket = self.socket.as_ref().unwrap();
-        let poll = self.poll.as_ref().unwrap();
+        let poll = &mut self.poll;
         let conn = self.conn.as_mut().unwrap();
 
         let events = &mut mio::Events::with_capacity(1);
@@ -237,11 +237,11 @@ impl QuicClient {
             let mut is_writable = false;
             for event in events.iter() {
                 match event.token() {
-                    SOCKET_TOKEN => loop {
+                    SOCKET_TOKEN => {
                         is_readable = event.readiness().is_readable();
                         // TODO check if is_writable ever becomes true
                         is_writable = is_readable || event.readiness().is_writable();
-                    },
+                    }
 
                     _ => {
                         let err = GeneralError {
@@ -303,10 +303,12 @@ impl From<Url> for QuicClient {
         .parse()
         .unwrap();
 
+        let poll = mio::Poll::new().unwrap();
+
         Self {
             url,
             bind_addr,
-            poll: None,
+            poll,
             socket: None,
             conn: None,
             http3_conn: None,
