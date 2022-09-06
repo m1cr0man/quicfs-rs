@@ -20,7 +20,7 @@
 		"version": "0.2.0",
 		"configurations": [
 			{
-				"name": "Debug executable 'quicfs-rs'",
+				"name": "Debug client",
 				"type": "lldb",
 				"request": "launch",
 				"cargo": {
@@ -34,7 +34,37 @@
 						"kind": "bin"
 					},
 				},
-				"args": [],
+				"args": [
+					"client",
+					"-s",
+					"http://127.0.0.1:12345",
+					"test",
+					"wat"
+				],
+				"cwd": "${workspaceFolder}"
+			},
+			{
+				"name": "Debug server",
+				"type": "lldb",
+				"request": "launch",
+				"cargo": {
+					"args": [
+						"build",
+						"--bin=quicfs-rs",
+						"--package=quicfs-rs"
+					],
+					"filter": {
+						"name": "quicfs-rs",
+						"kind": "bin"
+					},
+				},
+				"args": [
+					"server",
+					"-s",
+					".",
+					"-l",
+					"0.0.0.0:12345"
+				],
 				"cwd": "${workspaceFolder}"
 			}
 		]

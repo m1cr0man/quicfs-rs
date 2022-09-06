@@ -7,8 +7,7 @@ edition = "2021"
 
 [dependencies]
 clap = "~2.34"
-ring = "0.16"
 log = { version = "0.4", features = ["std"]}
-mio = "0.6.0"
-quiche = "0.10"
+env_logger = "0.9.0"
+qp2p = "0.30.0"
 url = "2.2"
