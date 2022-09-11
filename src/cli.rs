@@ -1,23 +1,30 @@
-use clap::clap_app;
+use clap::{Parser, Subcommand};
 
-pub fn get_app<'a>(version: &'a str) -> clap::App<'a, 'a> {
-    let author = "Lucas S. <lucas@m1cr0man.com>";
+#[derive(Parser)]
+#[clap(name = "quicfs")]
+#[clap(author = "Lucas S. <lucas@m1cr0man.com>")]
+#[clap(bin_name = "quicfs")]
+#[clap(about = "Network file system utilising QUIC")]
+pub struct QuicFSCli {
+    #[clap(subcommand)]
+    pub command: Commands,
+}
 
-    clap_app!(app =>
-        (name: "QuicFS")
-        (version: version)
-        (author: author)
-        (about: "Network file system utilising QUIC")
-        (@subcommand client =>
-            (about: "QuicFS Client utility")
-            (@arg server: --server -s +required "URI of server")
-            (@arg SRC: +required "File to download from server")
-            (@arg DEST: +required "Destination file")
-        )
-        (@subcommand server =>
-            (about: "QuicFS Server utility")
-            (@arg listen: --listen -l +required "Listening address (addr:port)")
-            (@arg serve: --serve -s +required "Directory to serve")
-        )
-    )
+#[derive(Subcommand)]
+pub enum Commands {
+    Client {
+        #[clap(short, long, value_parser)]
+        server: Option<String>,
+        #[clap(value_parser)]
+        src: Option<String>,
+        #[clap(value_parser)]
+        dest: Option<String>,
+    },
+
+    Server {
+        #[clap(short, long, value_parser)]
+        listen: Option<String>,
+        #[clap(short, long, value_parser)]
+        serve: Option<String>,
+    },
 }
