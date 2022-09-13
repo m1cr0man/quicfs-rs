@@ -1,1 +1,1 @@
-{ pkgs ? import <nixpkgs> {} }: pkgs.vscode-extensions.vadimcn.vscode-lldb
+{ pkgs ? import (builtins.getFlake "nixpkgs") {} }: pkgs.vscode-extensions.vadimcn.vscode-lldb
