@@ -40,7 +40,6 @@ async fn server(listen_addr: &String) {
                     // Note: await is implicit
                     result = reader.read_line(&mut line) => {
                         if result.unwrap() == 0 {
-                            println!("{} disconnected", addr);
                             break;
                         }
 
@@ -60,6 +59,10 @@ async fn server(listen_addr: &String) {
                     }
                 }
             }
+
+            // Clean shutdown
+            println!("{} disconnected", addr);
+            socket.shutdown().await.unwrap();
         });
     }
 }
@@ -67,11 +70,13 @@ async fn server(listen_addr: &String) {
 async fn client(server_addr: &String) {
     let mut conn = TcpStream::connect(server_addr).await.unwrap();
 
+    // No real need to split but we do it anyway in case things get more complex.
     let (read, mut write) = conn.split();
 
     let mut reader = BufReader::new(read);
     let mut line = String::new();
 
+    // We can read stdin like any other object implementing AsyncRead
     let input = stdin();
     let mut input_reader = BufReader::new(input);
     let mut msg = String::new();
@@ -80,18 +85,26 @@ async fn client(server_addr: &String) {
         tokio::select! {
             _result = reader.read_line(&mut line) => {
                 print!("{}", line);
+
                 line.clear();
             }
+
             result = input_reader.read_line(&mut msg) => {
+                // ctrl+d
                 if result.unwrap() == 0 {
-                    println!("Bye!");
                     break;
                 }
+
                 write.write(msg.as_bytes()).await.unwrap();
+
                 msg.clear();
             }
         }
     }
+
+    // Clean shutdown
+    println!("Bye!");
+    conn.shutdown().await.unwrap();
 }
 
 #[tokio::main]
