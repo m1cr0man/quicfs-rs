@@ -7,7 +7,7 @@ use clap::{Parser, Subcommand};
 #[clap(about = "Network file system utilising QUIC")]
 pub struct QuicFSCli {
     #[clap(subcommand)]
-    pub command: Option<Commands>,
+    pub command: Commands,
 }
 
 #[derive(Subcommand)]

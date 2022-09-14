@@ -115,18 +115,15 @@ async fn main() {
     let cli = cli::QuicFSCli::parse();
 
     match &cli.command {
-        Some(cli::Commands::Server { listen, serve: _ }) => {
+        cli::Commands::Server { listen, serve: _ } => {
             return server(listen).await;
         }
-        Some(cli::Commands::Client {
+        cli::Commands::Client {
             server: server_addr,
             src: _,
             dest: _,
-        }) => {
+        } => {
             return client(server_addr).await;
-        }
-        None => {
-            println!("Specify a command")
         }
     }
 }
