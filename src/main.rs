@@ -1,21 +1,22 @@
+use clap::Parser;
 use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
-    net::TcpListener,
+    io::{stdin, AsyncBufReadExt, AsyncWriteExt, BufReader},
+    net::{TcpListener, TcpStream},
     sync::broadcast,
 };
 
-#[tokio::main]
-async fn main() {
-    let out = "Hello world!";
-    println!("{}", out);
+mod cli;
 
-    let listener = TcpListener::bind("localhost:8012").await.unwrap();
+async fn server(listen_addr: &String) {
+    let listener = TcpListener::bind(listen_addr).await.unwrap();
 
     let (tx, _rx) = broadcast::channel(10);
 
     // This loop allows us to accept multiple connections
     loop {
         let (mut socket, addr) = listener.accept().await.unwrap();
+
+        println!("{} connected", addr);
 
         let tx = tx.clone();
         // Quirk: Clone the rx from the tx, rather than the original rx
@@ -39,6 +40,7 @@ async fn main() {
                     // Note: await is implicit
                     result = reader.read_line(&mut line) => {
                         if result.unwrap() == 0 {
+                            println!("{} disconnected", addr);
                             break;
                         }
 
@@ -53,11 +55,65 @@ async fn main() {
                         // Don't repeat what the current connection sent
                         if recv_addr != addr {
                             // line.as_bytes -> provides underlying bytes
-                            write.write_all(&msg.as_bytes()).await.unwrap();
+                            write.write_all(msg.as_bytes()).await.unwrap();
                         }
                     }
                 }
             }
         });
+    }
+}
+
+async fn client(server_addr: &String) {
+    let mut conn = TcpStream::connect(server_addr).await.unwrap();
+
+    let (read, mut write) = conn.split();
+
+    let mut reader = BufReader::new(read);
+    let mut line = String::new();
+
+    let input = stdin();
+    let mut input_reader = BufReader::new(input);
+    let mut msg = String::new();
+
+    loop {
+        tokio::select! {
+            _result = reader.read_line(&mut line) => {
+                print!("{}", line);
+                line.clear();
+            }
+            result = input_reader.read_line(&mut msg) => {
+                if result.unwrap() == 0 {
+                    println!("Bye!");
+                    break;
+                }
+                write.write(msg.as_bytes()).await.unwrap();
+                msg.clear();
+            }
+        }
+    }
+}
+
+#[tokio::main]
+async fn main() {
+    let out = "Hello world!";
+    println!("{}", out);
+
+    let cli = cli::QuicFSCli::parse();
+
+    match &cli.command {
+        Some(cli::Commands::Server { listen, serve: _ }) => {
+            return server(listen).await;
+        }
+        Some(cli::Commands::Client {
+            server: server_addr,
+            src: _,
+            dest: _,
+        }) => {
+            return client(server_addr).await;
+        }
+        None => {
+            println!("Specify a command")
+        }
     }
 }

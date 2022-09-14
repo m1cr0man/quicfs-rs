@@ -45,7 +45,7 @@
 			},
 			{
 				"name": "Debug server",
-				"type": "lldb",
+				"type": "",
 				"request": "launch",
 				"cargo": {
 					"args": [
@@ -63,7 +63,7 @@
 					"-s",
 					".",
 					"-l",
-					"0.0.0.0:12345"
+					"0.0.0.0:8022"
 				],
 				"cwd": "${workspaceFolder}"
 			}

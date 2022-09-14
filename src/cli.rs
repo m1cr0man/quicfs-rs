@@ -7,23 +7,22 @@ use clap::{Parser, Subcommand};
 #[clap(about = "Network file system utilising QUIC")]
 pub struct QuicFSCli {
     #[clap(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
 pub enum Commands {
     Client {
         #[clap(short, long, value_parser)]
-        server: Option<String>,
+        server: String,
         #[clap(value_parser)]
         src: Option<String>,
         #[clap(value_parser)]
         dest: Option<String>,
     },
-
     Server {
         #[clap(short, long, value_parser)]
-        listen: Option<String>,
+        listen: String,
         #[clap(short, long, value_parser)]
         serve: Option<String>,
     },
