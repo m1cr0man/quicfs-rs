@@ -1,68 +1,96 @@
 use clap::Parser;
+use futures_util::StreamExt;
+use quinn::{Endpoint, NewConnection, ServerConfig};
+use rustls_pemfile::Item;
+use std::error::Error;
+use std::net::SocketAddr;
+use std::{fs::File, io::BufReader};
 use tokio::{
-    io::{stdin, AsyncBufReadExt, AsyncWriteExt, BufReader},
-    net::{TcpListener, TcpStream},
+    io::{stdin, AsyncBufReadExt, AsyncWriteExt},
+    net::TcpStream,
     sync::broadcast,
 };
-
 mod cli;
 
+pub fn read_certs_from_file(
+    dir: String,
+) -> Result<(Vec<rustls::Certificate>, rustls::PrivateKey), Box<dyn Error>> {
+    let mut reader = BufReader::new(File::open(dir.clone() + "/fullchain.pem")?);
+    let certs = rustls_pemfile::certs(&mut reader)?
+        .into_iter()
+        .map(rustls::Certificate)
+        .collect();
+
+    let mut key_reader = BufReader::new(File::open(dir + "/key.pem")?);
+    let key = match rustls_pemfile::read_one(&mut key_reader)? {
+        Some(Item::ECKey(k)) => k,
+        _ => panic!("Unrecognised key"),
+    };
+
+    let key = rustls::PrivateKey(key);
+
+    return Ok((certs, key));
+}
+
+fn convert_addr(addr: &String) -> SocketAddr {
+    return addr.parse().unwrap();
+}
+
 async fn server(listen_addr: &String) {
-    let listener = TcpListener::bind(listen_addr).await.unwrap();
+    let (certs, key) =
+        read_certs_from_file("/var/lib/acme/unimog.m1cr0man.com".to_string()).unwrap();
+    let server_config = ServerConfig::with_single_cert(certs, key).unwrap();
+    let (_endpoint, mut listener) =
+        Endpoint::server(server_config, convert_addr(listen_addr)).unwrap();
 
     let (tx, _rx) = broadcast::channel(10);
 
     // This loop allows us to accept multiple connections
-    loop {
-        let (mut socket, addr) = listener.accept().await.unwrap();
-
+    while let Some(conn) = listener.next().await {
+        let mut connection: NewConnection = conn.await.unwrap();
+        let addr = connection.connection.remote_address().clone();
         println!("{} connected", addr);
 
         let tx = tx.clone();
         // Quirk: Clone the rx from the tx, rather than the original rx
         let mut rx = tx.subscribe();
 
-        // Spawn a new thread to handle this connection
-        // async move allows us to create a future, avoids simply writing a new function
-        // Kind of like an async lambda I guess?
         tokio::spawn(async move {
-            // Can't be in the loop due to the move
-            let (read, mut write) = socket.split();
+            while let Some(Ok((mut write, read))) = connection.bi_streams.next().await {
+                println!("{} new bidirectional stream", addr);
 
-            // Note: BufReader owns the entire socket if we didn't split.
-            // Hence we only pass the relevant half.
-            let mut reader = BufReader::new(read);
-            let mut line = String::new();
+                // Note: BufReader owns the entire socket if we didn't split.
+                // Hence we only pass the relevant half.
+                let mut reader = tokio::io::BufReader::new(read);
+                let mut line = String::new();
 
-            loop {
-                // Use select so we can read + write at the same time
-                tokio::select! {
-                    // Note: await is implicit
-                    result = reader.read_line(&mut line) => {
-                        if result.unwrap() == 0 {
-                            break;
+                loop {
+                    // Use select so we can read + write at the same time
+                    tokio::select! {
+                        // Note: await is implicit
+                        result = reader.read_line(&mut line) => {
+                            if result.unwrap() == 0 {
+                                break;
+                            }
+
+                            tx.send((line.clone(), addr)).unwrap();
+
+                            // Wipe the line buffer each time
+                            line.clear();
                         }
 
-                        tx.send((line.clone(), addr)).unwrap();
-
-                        // Wipe the line buffer each time
-                        line.clear();
-                    }
-
-                    result = rx.recv() => {
-                        let (msg, recv_addr) = result.unwrap();
-                        // Don't repeat what the current connection sent
-                        if recv_addr != addr {
-                            // line.as_bytes -> provides underlying bytes
-                            write.write_all(msg.as_bytes()).await.unwrap();
+                        result = rx.recv() => {
+                            let (msg, recv_addr) = result.unwrap();
+                            // Don't repeat what the current connection sent
+                            if recv_addr != addr {
+                                // line.as_bytes -> provides underlying bytes
+                                write.write_all(msg.as_bytes()).await.unwrap();
+                            }
                         }
                     }
                 }
             }
-
-            // Clean shutdown
             println!("{} disconnected", addr);
-            socket.shutdown().await.unwrap();
         });
     }
 }
@@ -73,12 +101,12 @@ async fn client(server_addr: &String) {
     // No real need to split but we do it anyway in case things get more complex.
     let (read, mut write) = conn.split();
 
-    let mut reader = BufReader::new(read);
+    let mut reader = tokio::io::BufReader::new(read);
     let mut line = String::new();
 
     // We can read stdin like any other object implementing AsyncRead
     let input = stdin();
-    let mut input_reader = BufReader::new(input);
+    let mut input_reader = tokio::io::BufReader::new(input);
     let mut msg = String::new();
 
     loop {
