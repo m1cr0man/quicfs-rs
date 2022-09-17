@@ -3,7 +3,7 @@
 Following [this video](https://www.youtube.com/watch?v=T2mWg91sx-o).
 
 Got very lost when socket.read_line was giving an unsatisfied trait error.
-Had to switch to using reader.
+Simple mistake, had to switch to using reader.read_line.
 https://users.rust-lang.org/t/how-can-i-read-line-by-line-from-tokio-tcpstream/38665
 
 split() is used so that we can delegate ownership of read to

@@ -1,13 +1,13 @@
 use clap::Parser;
 use futures_util::StreamExt;
-use quinn::{Endpoint, NewConnection, ServerConfig};
+use quinn::{ClientConfig, Endpoint, NewConnection, ServerConfig};
+use rustls::RootCertStore;
 use rustls_pemfile::Item;
 use std::error::Error;
 use std::net::SocketAddr;
 use std::{fs::File, io::BufReader};
 use tokio::{
-    io::{stdin, AsyncBufReadExt, AsyncWriteExt},
-    net::TcpStream,
+    io::{stdin, AsyncBufReadExt},
     sync::broadcast,
 };
 mod cli;
@@ -70,6 +70,7 @@ async fn server(listen_addr: &String) {
                         // Note: await is implicit
                         result = reader.read_line(&mut line) => {
                             if result.unwrap() == 0 {
+                                write.finish().await.unwrap();
                                 break;
                             }
 
@@ -96,10 +97,24 @@ async fn server(listen_addr: &String) {
 }
 
 async fn client(server_addr: &String) {
-    let mut conn = TcpStream::connect(server_addr).await.unwrap();
+    let (certs, _key) =
+        read_certs_from_file("/var/lib/acme/unimog.m1cr0man.com".to_string()).unwrap();
+    let mut roots = RootCertStore::empty();
+    roots.add(certs.last().unwrap()).unwrap();
+    let client_config = ClientConfig::with_root_certificates(roots);
 
-    // No real need to split but we do it anyway in case things get more complex.
-    let (read, mut write) = conn.split();
+    let mut endpoint = Endpoint::client(convert_addr(&"0.0.0.0:0".to_string())).unwrap();
+    endpoint.set_default_client_config(client_config);
+
+    let conn = endpoint
+        .connect(convert_addr(server_addr), "unimog.m1cr0man.com")
+        .unwrap();
+
+    let NewConnection { connection, .. } = conn.await.unwrap();
+
+    println!("Connected to {}", server_addr);
+
+    let (mut write, read) = connection.open_bi().await.unwrap();
 
     let mut reader = tokio::io::BufReader::new(read);
     let mut line = String::new();
@@ -108,6 +123,7 @@ async fn client(server_addr: &String) {
     let input = stdin();
     let mut input_reader = tokio::io::BufReader::new(input);
     let mut msg = String::new();
+    let mut written;
 
     loop {
         tokio::select! {
@@ -119,11 +135,16 @@ async fn client(server_addr: &String) {
 
             result = input_reader.read_line(&mut msg) => {
                 // ctrl+d
-                if result.unwrap() == 0 {
+                let datalen = result.unwrap();
+                if datalen == 0 {
                     break;
                 }
 
-                write.write(msg.as_bytes()).await.unwrap();
+                written = 0;
+                while written < datalen {
+                    written = written + write.write(msg[written..].as_bytes()).await.unwrap();
+                    println!("{} written", written);
+                }
 
                 msg.clear();
             }
@@ -132,7 +153,6 @@ async fn client(server_addr: &String) {
 
     // Clean shutdown
     println!("Bye!");
-    conn.shutdown().await.unwrap();
 }
 
 #[tokio::main]
