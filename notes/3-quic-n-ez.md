@@ -27,3 +27,15 @@ After that, appropriately mapped/replaced the tcpstream with the quinn connectio
 and converted server. Next is client.
 
 Found [this nice issue](https://github.com/quinn-rs/quinn/issues/950) too.
+
+## Bidirectional vs unidirectional streams
+
+It's important to note that QUIC streams are not like streams in other
+protocols. They are only initiated when one side sends data on the
+given stream number. Consider a chat service where we want bidirectional
+communication between client and server. If the client initates the stream,
+we may want to send data to them at a time that isn't possible. The opposite
+applies too. In this case, we use a unidirectional stream for each direction,
+server -> client and client -> server, each managed by its respective parent.
+That way we can send data in both directions at any time in the connection
+lifecycle.
