@@ -74,7 +74,8 @@
 			"arrterian.nix-env-selector",
 			"matklad.rust-analyzer",
 			"bbenoist.nix",
-			"vadimcn.vscode-lldb"
+			"vadimcn.vscode-lldb",
+			"xmonader.vscode-capnp"
 		]
 	}
 }

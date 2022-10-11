@@ -14,6 +14,9 @@ use tokio::{
 };
 mod cli;
 
+#[path = "./schema/server_capnp.rs"]
+mod server_capnp;
+
 pub fn read_certs_from_file(
     dir: String,
 ) -> Result<(Vec<rustls::Certificate>, rustls::PrivateKey), Box<dyn Error>> {
