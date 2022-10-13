@@ -1,5 +1,8 @@
 @0xac3b9e27f56a9719;
 
+using Rust = import "../rust.capnp";
+$Rust.parentModule("schema::nodes");
+
 using Files = import "../core/files.capnp";
 using CM = import "../core/models.capnp";
 

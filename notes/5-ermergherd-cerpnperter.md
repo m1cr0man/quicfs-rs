@@ -30,3 +30,8 @@ Also, I was really confused by the build instructions. The actual steps were:
 - Write the required bits into it, make sure to call output_path.
 - Update the repo's Cargo.toml to set the build script.
 - Run `cargo build`.
+
+## But wait, there's more!
+
+Had to do some annotation shite and add mod.rs files everywhere to actually get
+the generated code to be importable.

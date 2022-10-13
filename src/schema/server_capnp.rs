@@ -6,10 +6,10 @@
 
 pub mod server {
   #![allow(unused_variables)]
-  pub type NullParams<> = ::capnp::capability::Params<crate::server_capnp::server::null_params::Owned>;
-  pub type NullResults<> = ::capnp::capability::Results<crate::server_capnp::server::null_results::Owned>;
-  pub type MountParams<> = ::capnp::capability::Params<crate::server_capnp::server::mount_params::Owned>;
-  pub type MountResults<> = ::capnp::capability::Results<crate::models_capnp::result::Owned<crate::directory_capnp::directory::Owned>>;
+  pub type NullParams<> = ::capnp::capability::Params<crate::schema::server_capnp::server::null_params::Owned>;
+  pub type NullResults<> = ::capnp::capability::Results<crate::schema::server_capnp::server::null_results::Owned>;
+  pub type MountParams<> = ::capnp::capability::Params<crate::schema::server_capnp::server::mount_params::Owned>;
+  pub type MountResults<> = ::capnp::capability::Results<crate::schema::core::models_capnp::result::Owned<crate::schema::nodes::directory_capnp::directory::Owned>>;
 
   pub struct Client {
     pub client: ::capnp::capability::Client,
@@ -53,10 +53,10 @@ pub mod server {
     }
   }
   impl  Client {
-    pub fn null_request(&self) -> ::capnp::capability::Request<crate::server_capnp::server::null_params::Owned,crate::server_capnp::server::null_results::Owned> {
+    pub fn null_request(&self) -> ::capnp::capability::Request<crate::schema::server_capnp::server::null_params::Owned,crate::schema::server_capnp::server::null_results::Owned> {
       self.client.new_call(_private::TYPE_ID, 0, None)
     }
-    pub fn mount_request(&self) -> ::capnp::capability::Request<crate::server_capnp::server::mount_params::Owned,crate::models_capnp::result::Owned<crate::directory_capnp::directory::Owned>> {
+    pub fn mount_request(&self) -> ::capnp::capability::Request<crate::schema::server_capnp::server::mount_params::Owned,crate::schema::core::models_capnp::result::Owned<crate::schema::nodes::directory_capnp::directory::Owned>> {
       self.client.new_call(_private::TYPE_ID, 1, None)
     }
   }

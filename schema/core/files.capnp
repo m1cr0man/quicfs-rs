@@ -1,5 +1,8 @@
 @0xae7b7cd10f869e4d;
 
+using Rust = import "../rust.capnp";
+$Rust.parentModule("schema::core");
+
 enum CreateMode {
     unchecked @0;
     guarded @1;
@@ -17,12 +20,12 @@ enum FileType {
 }
 
 struct AccessRights {
-    const Read :UInt16 = 1;
-    const Lookup :UInt16 = 2;
-    const Modify :UInt16 = 4;
-    const Extend :UInt16 = 8;
-    const Delete :UInt16 = 16;
-    const Execute :UInt16 = 32;
+    const read :UInt16 = 1;
+    const lookup :UInt16 = 2;
+    const modify :UInt16 = 4;
+    const extend :UInt16 = 8;
+    const delete :UInt16 = 16;
+    const execute :UInt16 = 32;
 }
 
 struct FileAttributes {
@@ -41,18 +44,18 @@ struct FileAttributes {
 }
 
 struct FileMode {
-    const OtherExec  :UInt32 = 1;
-    const OtherWrite :UInt32 = 2;
-    const OtherRead  :UInt32 = 4;
-    const GroupExec  :UInt32 = 8;
-    const GroupWrite :UInt32 = 16;
-    const GroupRead  :UInt32 = 32;
-    const OwnerExec  :UInt32 = 64;
-    const OwnerWrite :UInt32 = 128;
-    const OwnerRead  :UInt32 = 256;
-    const Sticky     :UInt32 = 512;
-    const SetGid     :UInt32 = 1024;
-    const SetUid     :UInt32 = 2048;
+    const otherExec  :UInt32 = 1;
+    const otherWrite :UInt32 = 2;
+    const otherRead  :UInt32 = 4;
+    const groupExec  :UInt32 = 8;
+    const groupWrite :UInt32 = 16;
+    const groupRead  :UInt32 = 32;
+    const ownerExec  :UInt32 = 64;
+    const ownerWrite :UInt32 = 128;
+    const ownerRead  :UInt32 = 256;
+    const sticky     :UInt32 = 512;
+    const setGid     :UInt32 = 1024;
+    const setUid     :UInt32 = 2048;
 }
 
 struct FSStat {

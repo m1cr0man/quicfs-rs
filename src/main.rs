@@ -14,8 +14,8 @@ use tokio::{
 };
 mod cli;
 
-#[path = "./schema/server_capnp.rs"]
-mod server_capnp;
+mod schema;
+mod server;
 
 pub fn read_certs_from_file(
     dir: String,

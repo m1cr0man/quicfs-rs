@@ -1,4 +1,8 @@
 @0xeb2cf27e974ce07f;
+
+using Rust = import "../rust.capnp";
+$Rust.parentModule("schema::core");
+
 using Errors = import "./errors.capnp";
 
 struct Timestamp {
