@@ -1,21 +1,22 @@
+use crate::schema::server_capnp;
 use clap::Parser;
-use futures_util::StreamExt;
+use futures_util::{FutureExt, StreamExt};
 use quinn::{ClientConfig, Endpoint, NewConnection, ServerConfig, TransportConfig};
 use rustls::RootCertStore;
 use rustls_pemfile::Item;
 use std::error::Error;
 use std::net::SocketAddr;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{fs::File, io::BufReader};
-use tokio::{
-    io::{stdin, AsyncBufReadExt},
-    sync::broadcast,
-};
+
 mod cli;
 
 mod schema;
 mod server;
+
+const RPC_THREADS: usize = 4;
 
 pub fn read_certs_from_file(
     dir: String,
@@ -49,6 +50,27 @@ fn get_transport_config() -> TransportConfig {
     transport_config
 }
 
+async fn handle_stream((write, read): (quinn::SendStream, quinn::RecvStream)) {
+    let network = capnp_rpc::twoparty::VatNetwork::new(
+        read,
+        write,
+        capnp_rpc::rpc_twoparty_capnp::Side::Server,
+        Default::default(),
+    );
+
+    // Create a capnp client
+    let quicfs_client: server_capnp::server::Client =
+        capnp_rpc::new_client(server::QuicfsServer {});
+
+    let rpc_system = capnp_rpc::RpcSystem::new(Box::new(network), Some(quicfs_client.client));
+
+    if let Err(error) = rpc_system.await {
+        println!("Error encountered in RPC system: {}", error);
+    };
+
+    println!("Stream closing");
+}
+
 async fn server(listen_addr: &String) {
     let (certs, key) =
         read_certs_from_file("/var/lib/acme/unimog.m1cr0man.com".to_string()).unwrap();
@@ -61,57 +83,27 @@ async fn server(listen_addr: &String) {
     let (_endpoint, mut listener) =
         Endpoint::server(server_config, convert_addr(listen_addr)).unwrap();
 
-    let (tx, _rx) = broadcast::channel(10);
-
     // This loop allows us to accept multiple connections
     while let Some(conn) = listener.next().await {
         let mut connection: NewConnection = conn.await.unwrap();
         let addr = connection.connection.remote_address().clone();
         println!("{} connected", addr);
 
-        let tx = tx.clone();
-
-        let (shut_tx, mut shut_rx) = broadcast::channel(1);
-
         tokio::spawn(async move {
-            println!("{} opening unidirectional stream", addr);
-
-            let mut write = connection.connection.open_uni().await.unwrap();
-
-            let tx = tx.clone();
-            // Quirk: Clone the rx from the tx, rather than the original rx
-            let mut rx = tx.subscribe();
+            println!("{} waiting for bidirectional streams", addr);
 
             loop {
                 tokio::select! {
-                    result = connection.uni_streams.next() => {
+                    result = connection.bi_streams.next() => {
                         if let Some(result_val) = result {
                             match result_val {
 
-                                Ok(read) => {
-                                    println!("{} new unidirectional stream", addr);
-
-                                    let tx = tx.clone();
-                                    let shut_tx = shut_tx.clone();
-
+                                Ok(streams) => {
+                                    println!("{} new bidirectional stream, starting RPC", addr);
                                     tokio::spawn(async move {
-                                        let mut reader = tokio::io::BufReader::new(read);
-                                        let mut line = String::new();
-
-                                        while let Ok(read_size) = reader.read_line(&mut line).await {
-                                            if read_size == 0 {
-                                                break;
-                                            }
-
-                                            print!("{} {}", addr, line);
-                                            tx.send((line.clone(), addr)).unwrap();
-
-                                            // Wipe the line buffer each time
-                                            line.clear();
-                                        }
-
-                                        println!("{} unidirectional stream closed by peer", addr);
-                                        shut_tx.send(1).unwrap();
+                                        let local_pool = tokio_util::task::LocalPoolHandle::new(1);
+                                        local_pool.spawn_pinned(|| { handle_stream(streams) }).await.unwrap();
+                                        println!("Bidirectional stream handler finished");
                                     });
                                 },
 
@@ -120,30 +112,19 @@ async fn server(listen_addr: &String) {
                                     match error {
                                         quinn::ConnectionError::TimedOut => {
                                         },
+                                        quinn::ConnectionError::ApplicationClosed(_) => {
+                                            println!("{} disconnected", addr);
+                                            break;
+                                        },
                                         _ => {
                                             println!("{} unhandled stream error {}", addr, error);
+                                            break;
                                         }
                                     }
                                 },
                             }
                         } else {
-                            break;
-                        }
-                    }
-
-                    result = rx.recv() => {
-                        let (msg, recv_addr) = result.unwrap();
-                        // Don't repeat what the current connection sent
-                        if recv_addr != addr {
-                            // line.as_bytes -> provides underlying bytes
-                            write.write_all(msg.as_bytes()).await.unwrap();
-                        }
-                    }
-
-                    result = shut_rx.recv() => {
-                        if let Ok(1) = result {
-                            println!("{} Disconnecting", addr);
-                            // Everything implements the appropriate out-of-scope handlers.
+                            println!("huh?");
                             break;
                         }
                     }
@@ -173,94 +154,57 @@ async fn client(server_addr: &String) {
         .connect(convert_addr(server_addr), "unimog.m1cr0man.com")
         .unwrap();
 
-    let NewConnection {
-        connection,
-        mut uni_streams,
-        ..
-    } = conn.await.unwrap();
+    let NewConnection { connection, .. } = conn.await.unwrap();
 
     println!("Connected to {}", server_addr);
 
-    let mut write = connection.open_uni().await.unwrap();
+    let (write, read) = connection.open_bi().await.unwrap();
+    let mut writer = Box::new(write);
 
-    // We can read stdin like any other object implementing AsyncRead
-    let input = stdin();
-    let mut input_reader = tokio::io::BufReader::new(input);
-    let mut msg = String::new();
-    let mut written;
-    let addr = connection.remote_address().clone();
+    {
+        let network = capnp_rpc::twoparty::VatNetwork::new(
+            read,
+            writer,
+            capnp_rpc::rpc_twoparty_capnp::Side::Client,
+            Default::default(),
+        );
 
-    loop {
-        tokio::select! {
-            result = uni_streams.next() => {
-                if let Some(result_val) = result {
-                    match result_val {
+        let mut rpc_system = capnp_rpc::RpcSystem::new(Box::new(network), None);
 
-                        Ok(read) => {
-                            println!("{} new unidirectional stream", addr);
+        let disconnector = rpc_system.get_disconnector();
 
-                            tokio::spawn(async move {
-                                let mut reader = tokio::io::BufReader::new(read);
-                                let mut line = String::new();
+        let quicfs_client: server_capnp::server::Client =
+            rpc_system.bootstrap(capnp_rpc::rpc_twoparty_capnp::Side::Server);
 
-                                while let Ok(read_size) = reader.read_line(&mut line).await {
-                                    if read_size == 0 {
-                                        break;
-                                    }
+        let local = tokio::task::LocalSet::new();
 
-                                    print!("{}", line);
+        local
+            .run_until(async move {
+                tokio::task::spawn_local(Box::pin(rpc_system));
 
-                                    line.clear();
-                                }
+                let mut request = quicfs_client.null_request();
+                request.get();
 
-                                println!("{} unidirectional stream closed by peer", addr);
-                            });
-                        },
+                let reply = request.send().promise.await.unwrap();
 
-                        Err(error) => {
-                            // FYI: Removing the else allows you to auto-fill all the types
-                            match error {
-                                quinn::ConnectionError::TimedOut => {
-                                },
-                                _ => {
-                                    println!("{} unhandled stream error {}", addr, error);
-                                }
-                            }
-                        },
-                    }
-                } else {
-                    break;
-                }
-            }
+                reply.get().unwrap();
+                println!("Got a response from null_request!");
+            })
+            .await;
 
-            result = input_reader.read_line(&mut msg) => {
-                // ctrl+d
-                let datalen = result.unwrap();
-                if datalen == 0 {
-                    println!("{} Disconnecting", addr);
-                    write.finish().await.unwrap();
-                    break;
-                }
-
-                written = 0;
-                while written < datalen {
-                    written = written + write.write(msg[written..].as_bytes()).await.unwrap();
-                    println!("{} written", written);
-                }
-
-                msg.clear();
-            }
-        }
+        // Clean shutdown
+        println!("Shutting down");
+        disconnector.await.unwrap();
     }
 
-    // Clean shutdown
     println!("Bye!");
+    connection.close(quinn::VarInt::from_u32(0), "bye".as_bytes());
 }
 
 #[tokio::main]
 async fn main() {
-    let out = "Hello world!";
-    println!("{}", out);
+    // let out = "Hello world!";
+    // println!("{}", out);
 
     let cli = cli::QuicFSCli::parse();
 
