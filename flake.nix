@@ -31,6 +31,7 @@
             cmake
             libev
             uthash
+            thrift
           ];
         };
       }
