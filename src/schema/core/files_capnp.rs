@@ -231,6 +231,14 @@ pub mod file_attributes {
       self.reader.total_size()
     }
     #[inline]
+    pub fn get_name(self) -> ::capnp::Result<::capnp::text::Reader<'a>> {
+      ::capnp::traits::FromPointerReader::get_from_pointer(&self.reader.get_pointer_field(0), ::core::option::Option::None)
+    }
+    #[inline]
+    pub fn has_name(&self) -> bool {
+      !self.reader.get_pointer_field(0).is_null()
+    }
+    #[inline]
     pub fn get_type(self) -> ::core::result::Result<crate::schema::core::files_capnp::FileType,::capnp::NotInSchema> {
       ::capnp::traits::FromU16::from_u16(self.reader.get_data_field::<u16>(0))
     }
@@ -264,27 +272,27 @@ pub mod file_attributes {
     }
     #[inline]
     pub fn get_mtime(self) -> ::capnp::Result<crate::schema::core::models_capnp::timestamp::Reader<'a>> {
-      ::capnp::traits::FromPointerReader::get_from_pointer(&self.reader.get_pointer_field(0), ::core::option::Option::None)
-    }
-    #[inline]
-    pub fn has_mtime(&self) -> bool {
-      !self.reader.get_pointer_field(0).is_null()
-    }
-    #[inline]
-    pub fn get_ctime(self) -> ::capnp::Result<crate::schema::core::models_capnp::timestamp::Reader<'a>> {
       ::capnp::traits::FromPointerReader::get_from_pointer(&self.reader.get_pointer_field(1), ::core::option::Option::None)
     }
     #[inline]
-    pub fn has_ctime(&self) -> bool {
+    pub fn has_mtime(&self) -> bool {
       !self.reader.get_pointer_field(1).is_null()
     }
     #[inline]
-    pub fn get_atime(self) -> ::capnp::Result<crate::schema::core::models_capnp::timestamp::Reader<'a>> {
+    pub fn get_ctime(self) -> ::capnp::Result<crate::schema::core::models_capnp::timestamp::Reader<'a>> {
       ::capnp::traits::FromPointerReader::get_from_pointer(&self.reader.get_pointer_field(2), ::core::option::Option::None)
     }
     #[inline]
-    pub fn has_atime(&self) -> bool {
+    pub fn has_ctime(&self) -> bool {
       !self.reader.get_pointer_field(2).is_null()
+    }
+    #[inline]
+    pub fn get_atime(self) -> ::capnp::Result<crate::schema::core::models_capnp::timestamp::Reader<'a>> {
+      ::capnp::traits::FromPointerReader::get_from_pointer(&self.reader.get_pointer_field(3), ::core::option::Option::None)
+    }
+    #[inline]
+    pub fn has_atime(&self) -> bool {
+      !self.reader.get_pointer_field(3).is_null()
     }
   }
 
@@ -335,6 +343,22 @@ pub mod file_attributes {
 
     pub fn total_size(&self) -> ::capnp::Result<::capnp::MessageSize> {
       self.builder.into_reader().total_size()
+    }
+    #[inline]
+    pub fn get_name(self) -> ::capnp::Result<::capnp::text::Builder<'a>> {
+      ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(0), ::core::option::Option::None)
+    }
+    #[inline]
+    pub fn set_name(&mut self, value: ::capnp::text::Reader<'_>)  {
+      self.builder.get_pointer_field(0).set_text(value);
+    }
+    #[inline]
+    pub fn init_name(self, size: u32) -> ::capnp::text::Builder<'a> {
+      self.builder.get_pointer_field(0).init_text(size)
+    }
+    #[inline]
+    pub fn has_name(&self) -> bool {
+      !self.builder.get_pointer_field(0).is_null()
     }
     #[inline]
     pub fn get_type(self) -> ::core::result::Result<crate::schema::core::files_capnp::FileType,::capnp::NotInSchema> {
@@ -402,51 +426,51 @@ pub mod file_attributes {
     }
     #[inline]
     pub fn get_mtime(self) -> ::capnp::Result<crate::schema::core::models_capnp::timestamp::Builder<'a>> {
-      ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(0), ::core::option::Option::None)
-    }
-    #[inline]
-    pub fn set_mtime(&mut self, value: crate::schema::core::models_capnp::timestamp::Reader<'_>) -> ::capnp::Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.get_pointer_field(0), value, false)
-    }
-    #[inline]
-    pub fn init_mtime(self, ) -> crate::schema::core::models_capnp::timestamp::Builder<'a> {
-      ::capnp::traits::FromPointerBuilder::init_pointer(self.builder.get_pointer_field(0), 0)
-    }
-    #[inline]
-    pub fn has_mtime(&self) -> bool {
-      !self.builder.get_pointer_field(0).is_null()
-    }
-    #[inline]
-    pub fn get_ctime(self) -> ::capnp::Result<crate::schema::core::models_capnp::timestamp::Builder<'a>> {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(1), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_ctime(&mut self, value: crate::schema::core::models_capnp::timestamp::Reader<'_>) -> ::capnp::Result<()> {
+    pub fn set_mtime(&mut self, value: crate::schema::core::models_capnp::timestamp::Reader<'_>) -> ::capnp::Result<()> {
       ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.get_pointer_field(1), value, false)
     }
     #[inline]
-    pub fn init_ctime(self, ) -> crate::schema::core::models_capnp::timestamp::Builder<'a> {
+    pub fn init_mtime(self, ) -> crate::schema::core::models_capnp::timestamp::Builder<'a> {
       ::capnp::traits::FromPointerBuilder::init_pointer(self.builder.get_pointer_field(1), 0)
     }
     #[inline]
-    pub fn has_ctime(&self) -> bool {
+    pub fn has_mtime(&self) -> bool {
       !self.builder.get_pointer_field(1).is_null()
     }
     #[inline]
-    pub fn get_atime(self) -> ::capnp::Result<crate::schema::core::models_capnp::timestamp::Builder<'a>> {
+    pub fn get_ctime(self) -> ::capnp::Result<crate::schema::core::models_capnp::timestamp::Builder<'a>> {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(2), ::core::option::Option::None)
     }
     #[inline]
-    pub fn set_atime(&mut self, value: crate::schema::core::models_capnp::timestamp::Reader<'_>) -> ::capnp::Result<()> {
+    pub fn set_ctime(&mut self, value: crate::schema::core::models_capnp::timestamp::Reader<'_>) -> ::capnp::Result<()> {
       ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.get_pointer_field(2), value, false)
     }
     #[inline]
-    pub fn init_atime(self, ) -> crate::schema::core::models_capnp::timestamp::Builder<'a> {
+    pub fn init_ctime(self, ) -> crate::schema::core::models_capnp::timestamp::Builder<'a> {
       ::capnp::traits::FromPointerBuilder::init_pointer(self.builder.get_pointer_field(2), 0)
     }
     #[inline]
-    pub fn has_atime(&self) -> bool {
+    pub fn has_ctime(&self) -> bool {
       !self.builder.get_pointer_field(2).is_null()
+    }
+    #[inline]
+    pub fn get_atime(self) -> ::capnp::Result<crate::schema::core::models_capnp::timestamp::Builder<'a>> {
+      ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(3), ::core::option::Option::None)
+    }
+    #[inline]
+    pub fn set_atime(&mut self, value: crate::schema::core::models_capnp::timestamp::Reader<'_>) -> ::capnp::Result<()> {
+      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.get_pointer_field(3), value, false)
+    }
+    #[inline]
+    pub fn init_atime(self, ) -> crate::schema::core::models_capnp::timestamp::Builder<'a> {
+      ::capnp::traits::FromPointerBuilder::init_pointer(self.builder.get_pointer_field(3), 0)
+    }
+    #[inline]
+    pub fn has_atime(&self) -> bool {
+      !self.builder.get_pointer_field(3).is_null()
     }
   }
 
@@ -458,18 +482,18 @@ pub mod file_attributes {
   }
   impl Pipeline  {
     pub fn get_mtime(&self) -> crate::schema::core::models_capnp::timestamp::Pipeline {
-      ::capnp::capability::FromTypelessPipeline::new(self._typeless.get_pointer_field(0))
-    }
-    pub fn get_ctime(&self) -> crate::schema::core::models_capnp::timestamp::Pipeline {
       ::capnp::capability::FromTypelessPipeline::new(self._typeless.get_pointer_field(1))
     }
-    pub fn get_atime(&self) -> crate::schema::core::models_capnp::timestamp::Pipeline {
+    pub fn get_ctime(&self) -> crate::schema::core::models_capnp::timestamp::Pipeline {
       ::capnp::capability::FromTypelessPipeline::new(self._typeless.get_pointer_field(2))
+    }
+    pub fn get_atime(&self) -> crate::schema::core::models_capnp::timestamp::Pipeline {
+      ::capnp::capability::FromTypelessPipeline::new(self._typeless.get_pointer_field(3))
     }
   }
   mod _private {
     use capnp::private::layout;
-    pub const STRUCT_SIZE: layout::StructSize = layout::StructSize { data: 6, pointers: 3 };
+    pub const STRUCT_SIZE: layout::StructSize = layout::StructSize { data: 6, pointers: 4 };
     pub const TYPE_ID: u64 = 0x9fa7_7522_eec2_5ae4;
   }
 }

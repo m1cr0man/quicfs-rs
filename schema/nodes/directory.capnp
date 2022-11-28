@@ -14,7 +14,7 @@ interface Directory extends(Node) {
     # TODO advanced mode arguments
     create @1 CreateRequest -> CM.Result(File);
 
-    mkdir @2 CreateRequest -> CM.Result(Directory);
+    mkdir @2 (name :Text) -> CM.Result(Directory);
 
     rmdir @3 (recursive :Bool = false) -> CM.BooleanResult;
 

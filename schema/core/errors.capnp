@@ -4,5 +4,12 @@ using Rust = import "../rust.capnp";
 $Rust.parentModule("schema::core");
 
 struct Error {
-    message @0 :Text;
+    code @0 :UInt16;
+    message @1 :Text;
+}
+
+enum ErrorCode {
+    unknown @0;
+    noEntity @1;
+    exists @2;
 }

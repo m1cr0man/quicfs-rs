@@ -1,22 +1,20 @@
 use crate::schema::server_capnp;
 use clap::Parser;
-use futures_util::{FutureExt, StreamExt};
+use futures_util::StreamExt;
 use quinn::{ClientConfig, Endpoint, NewConnection, ServerConfig, TransportConfig};
 use rustls::RootCertStore;
 use rustls_pemfile::Item;
 use std::error::Error;
 use std::net::SocketAddr;
-use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{fs::File, io::BufReader};
 
 mod cli;
 
+mod client;
 mod schema;
 mod server;
-
-const RPC_THREADS: usize = 4;
 
 pub fn read_certs_from_file(
     dir: String,
@@ -58,9 +56,9 @@ async fn handle_stream((write, read): (quinn::SendStream, quinn::RecvStream)) {
         Default::default(),
     );
 
-    // Create a capnp client
+    // Create a capnp client for the server
     let quicfs_client: server_capnp::server::Client =
-        capnp_rpc::new_client(server::QuicfsServer {});
+        capnp_rpc::new_client(server::QuicfsServerImpl::new());
 
     let rpc_system = capnp_rpc::RpcSystem::new(Box::new(network), Some(quicfs_client.client));
 
@@ -85,6 +83,8 @@ async fn server(listen_addr: &String) {
 
     // This loop allows us to accept multiple connections
     while let Some(conn) = listener.next().await {
+        // Create a local pool handle with 4 threads per client.
+        let local_pool = tokio_util::task::LocalPoolHandle::new(4);
         let mut connection: NewConnection = conn.await.unwrap();
         let addr = connection.connection.remote_address().clone();
         println!("{} connected", addr);
@@ -93,6 +93,8 @@ async fn server(listen_addr: &String) {
             println!("{} waiting for bidirectional streams", addr);
 
             loop {
+                // I don't fully understand why I have to clone this here..
+                let local_pool = local_pool.clone();
                 tokio::select! {
                     result = connection.bi_streams.next() => {
                         if let Some(result_val) = result {
@@ -101,8 +103,8 @@ async fn server(listen_addr: &String) {
                                 Ok(streams) => {
                                     println!("{} new bidirectional stream, starting RPC", addr);
                                     tokio::spawn(async move {
-                                        let local_pool = tokio_util::task::LocalPoolHandle::new(1);
-                                        local_pool.spawn_pinned(|| { handle_stream(streams) }).await.unwrap();
+                                        let res = local_pool.spawn_pinned(|| { handle_stream(streams) });
+                                        res.await.unwrap();
                                         println!("Bidirectional stream handler finished");
                                     });
                                 },
@@ -159,7 +161,7 @@ async fn client(server_addr: &String) {
     println!("Connected to {}", server_addr);
 
     let (write, read) = connection.open_bi().await.unwrap();
-    let mut writer = Box::new(write);
+    let writer = Box::new(write);
 
     {
         let network = capnp_rpc::twoparty::VatNetwork::new(
@@ -203,9 +205,6 @@ async fn client(server_addr: &String) {
 
 #[tokio::main]
 async fn main() {
-    // let out = "Hello world!";
-    // println!("{}", out);
-
     let cli = cli::QuicFSCli::parse();
 
     match &cli.command {

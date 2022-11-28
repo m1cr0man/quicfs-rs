@@ -30,17 +30,18 @@ struct AccessRights {
 
 struct FileAttributes {
     using import "models.capnp".Timestamp;
-    type @0   :FileType;
-    mode @1   :UInt32;
-    nlink @2  :UInt32;
-    uid @3    :UInt32;
-    gid @4    :UInt32;
-    size @5   :UInt64;
-    used @6   :UInt64;
-    offset @7 :UInt64;
-    mtime @8  :Timestamp;
-    ctime @9  :Timestamp;
-    atime @10 :Timestamp;
+    name @0   :Text;
+    type @1   :FileType;
+    mode @2   :UInt32;
+    nlink @3  :UInt32;
+    uid @4    :UInt32;
+    gid @5    :UInt32;
+    size @6   :UInt64;
+    used @7   :UInt64;
+    offset @8 :UInt64;
+    mtime @9  :Timestamp;
+    ctime @10 :Timestamp;
+    atime @11 :Timestamp;
 }
 
 struct FileMode {

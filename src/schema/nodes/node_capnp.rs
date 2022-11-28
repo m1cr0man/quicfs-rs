@@ -11,11 +11,13 @@ pub mod node {
   pub type AccessParams<> = ::capnp::capability::Params<crate::schema::nodes::node_capnp::node::access_params::Owned>;
   pub type AccessResults<> = ::capnp::capability::Results<crate::schema::core::models_capnp::result::Owned<crate::schema::nodes::node_capnp::node::access_result::Owned>>;
   pub type RenameParams<> = ::capnp::capability::Params<crate::schema::nodes::node_capnp::node::rename_params::Owned>;
-  pub type RenameResults<> = ::capnp::capability::Results<crate::schema::core::models_capnp::result::Owned<crate::schema::core::files_capnp::file_attributes::Owned>>;
+  pub type RenameResults<> = ::capnp::capability::Results<crate::schema::core::models_capnp::result::Owned<crate::schema::nodes::node_capnp::node::Owned>>;
   pub type FsstatParams<> = ::capnp::capability::Params<crate::schema::nodes::node_capnp::node::fsstat_params::Owned>;
   pub type FsstatResults<> = ::capnp::capability::Results<crate::schema::core::models_capnp::result::Owned<crate::schema::core::files_capnp::f_s_stat::Owned>>;
   pub type CommitParams<> = ::capnp::capability::Params<crate::schema::nodes::node_capnp::node::commit_params::Owned>;
   pub type CommitResults<> = ::capnp::capability::Results<crate::schema::core::models_capnp::boolean_result::Owned>;
+  pub type LinkParams<> = ::capnp::capability::Params<crate::schema::nodes::node_capnp::node::link_params::Owned>;
+  pub type LinkResults<> = ::capnp::capability::Results<crate::schema::core::models_capnp::result::Owned<crate::schema::nodes::node_capnp::node::Owned>>;
 
   pub struct Client {
     pub client: ::capnp::capability::Client,
@@ -65,7 +67,7 @@ pub mod node {
     pub fn access_request(&self) -> ::capnp::capability::Request<crate::schema::nodes::node_capnp::node::access_params::Owned,crate::schema::core::models_capnp::result::Owned<crate::schema::nodes::node_capnp::node::access_result::Owned>> {
       self.client.new_call(_private::TYPE_ID, 1, None)
     }
-    pub fn rename_request(&self) -> ::capnp::capability::Request<crate::schema::nodes::node_capnp::node::rename_params::Owned,crate::schema::core::models_capnp::result::Owned<crate::schema::core::files_capnp::file_attributes::Owned>> {
+    pub fn rename_request(&self) -> ::capnp::capability::Request<crate::schema::nodes::node_capnp::node::rename_params::Owned,crate::schema::core::models_capnp::result::Owned<crate::schema::nodes::node_capnp::node::Owned>> {
       self.client.new_call(_private::TYPE_ID, 2, None)
     }
     pub fn fsstat_request(&self) -> ::capnp::capability::Request<crate::schema::nodes::node_capnp::node::fsstat_params::Owned,crate::schema::core::models_capnp::result::Owned<crate::schema::core::files_capnp::f_s_stat::Owned>> {
@@ -74,6 +76,9 @@ pub mod node {
     pub fn commit_request(&self) -> ::capnp::capability::Request<crate::schema::nodes::node_capnp::node::commit_params::Owned,crate::schema::core::models_capnp::boolean_result::Owned> {
       self.client.new_call(_private::TYPE_ID, 4, None)
     }
+    pub fn link_request(&self) -> ::capnp::capability::Request<crate::schema::nodes::node_capnp::node::link_params::Owned,crate::schema::core::models_capnp::result::Owned<crate::schema::nodes::node_capnp::node::Owned>> {
+      self.client.new_call(_private::TYPE_ID, 5, None)
+    }
   }
   pub trait Server<>   {
     fn getattr(&mut self, _: GetattrParams<>, _: GetattrResults<>) -> ::capnp::capability::Promise<(), ::capnp::Error> { ::capnp::capability::Promise::err(::capnp::Error::unimplemented("method node::Server::getattr not implemented".to_string())) }
@@ -81,6 +86,7 @@ pub mod node {
     fn rename(&mut self, _: RenameParams<>, _: RenameResults<>) -> ::capnp::capability::Promise<(), ::capnp::Error> { ::capnp::capability::Promise::err(::capnp::Error::unimplemented("method node::Server::rename not implemented".to_string())) }
     fn fsstat(&mut self, _: FsstatParams<>, _: FsstatResults<>) -> ::capnp::capability::Promise<(), ::capnp::Error> { ::capnp::capability::Promise::err(::capnp::Error::unimplemented("method node::Server::fsstat not implemented".to_string())) }
     fn commit(&mut self, _: CommitParams<>, _: CommitResults<>) -> ::capnp::capability::Promise<(), ::capnp::Error> { ::capnp::capability::Promise::err(::capnp::Error::unimplemented("method node::Server::commit not implemented".to_string())) }
+    fn link(&mut self, _: LinkParams<>, _: LinkResults<>) -> ::capnp::capability::Promise<(), ::capnp::Error> { ::capnp::capability::Promise::err(::capnp::Error::unimplemented("method node::Server::link not implemented".to_string())) }
   }
   pub struct ServerDispatch<_T,> {
     pub server: _T,
@@ -114,6 +120,7 @@ pub mod node {
         2 => server.rename(::capnp::private::capability::internal_get_typed_params(params), ::capnp::private::capability::internal_get_typed_results(results)),
         3 => server.fsstat(::capnp::private::capability::internal_get_typed_params(params), ::capnp::private::capability::internal_get_typed_results(results)),
         4 => server.commit(::capnp::private::capability::internal_get_typed_params(params), ::capnp::private::capability::internal_get_typed_results(results)),
+        5 => server.link(::capnp::private::capability::internal_get_typed_params(params), ::capnp::private::capability::internal_get_typed_results(results)),
         _ => { ::capnp::capability::Promise::err(::capnp::Error::unimplemented("Method not implemented.".to_string())) }
       }
     }
@@ -520,12 +527,8 @@ pub mod node {
         self.reader.total_size()
       }
       #[inline]
-      pub fn get_name(self) -> ::capnp::Result<::capnp::text::Reader<'a>> {
-        ::capnp::traits::FromPointerReader::get_from_pointer(&self.reader.get_pointer_field(0), ::core::option::Option::None)
-      }
-      #[inline]
-      pub fn has_name(&self) -> bool {
-        !self.reader.get_pointer_field(0).is_null()
+      pub fn get_dest(self) -> ::capnp::Result<crate::schema::nodes::node_capnp::node::Client> {
+        match self.reader.get_pointer_field(0).get_capability() { ::core::result::Result::Ok(c) => ::core::result::Result::Ok(::capnp::capability::FromClientHook::new(c)), ::core::result::Result::Err(e) => ::core::result::Result::Err(e)}
       }
     }
 
@@ -578,20 +581,12 @@ pub mod node {
         self.builder.into_reader().total_size()
       }
       #[inline]
-      pub fn get_name(self) -> ::capnp::Result<::capnp::text::Builder<'a>> {
-        ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(0), ::core::option::Option::None)
+      pub fn get_dest(self) -> ::capnp::Result<crate::schema::nodes::node_capnp::node::Client> {
+        match self.builder.get_pointer_field(0).get_capability() { ::core::result::Result::Ok(c) => ::core::result::Result::Ok(::capnp::capability::FromClientHook::new(c)), ::core::result::Result::Err(e) => ::core::result::Result::Err(e)}
       }
       #[inline]
-      pub fn set_name(&mut self, value: ::capnp::text::Reader<'_>)  {
-        self.builder.get_pointer_field(0).set_text(value);
-      }
-      #[inline]
-      pub fn init_name(self, size: u32) -> ::capnp::text::Builder<'a> {
-        self.builder.get_pointer_field(0).init_text(size)
-      }
-      #[inline]
-      pub fn has_name(&self) -> bool {
-        !self.builder.get_pointer_field(0).is_null()
+      pub fn set_dest(&mut self, value: crate::schema::nodes::node_capnp::node::Client)  {
+        self.builder.get_pointer_field(0).set_capability(value.client.hook);
       }
     }
 
@@ -602,6 +597,9 @@ pub mod node {
       }
     }
     impl Pipeline  {
+      pub fn get_dest(&self) -> crate::schema::nodes::node_capnp::node::Client {
+        ::capnp::capability::FromClientHook::new(self._typeless.get_pointer_field(0).as_cap())
+      }
     }
     mod _private {
       use capnp::private::layout;
@@ -833,6 +831,158 @@ pub mod node {
       use capnp::private::layout;
       pub const STRUCT_SIZE: layout::StructSize = layout::StructSize { data: 0, pointers: 0 };
       pub const TYPE_ID: u64 = 0x983b_1ed7_cee8_8412;
+    }
+  }
+
+  pub mod link_params {
+    #[derive(Copy, Clone)]
+    pub struct Owned(());
+    impl <'a> ::capnp::traits::Owned<'a> for Owned { type Reader = Reader<'a>; type Builder = Builder<'a>; }
+    impl <'a> ::capnp::traits::OwnedStruct<'a> for Owned { type Reader = Reader<'a>; type Builder = Builder<'a>; }
+    impl ::capnp::traits::Pipelined for Owned { type Pipeline = Pipeline; }
+
+    #[derive(Clone, Copy)]
+    pub struct Reader<'a> { reader: ::capnp::private::layout::StructReader<'a> }
+
+    impl <'a,> ::capnp::traits::HasTypeId for Reader<'a,>  {
+      #[inline]
+      fn type_id() -> u64 { _private::TYPE_ID }
+    }
+    impl <'a,> ::capnp::traits::FromStructReader<'a> for Reader<'a,>  {
+      fn new(reader: ::capnp::private::layout::StructReader<'a>) -> Reader<'a,> {
+        Reader { reader,  }
+      }
+    }
+
+    impl <'a,> ::capnp::traits::FromPointerReader<'a> for Reader<'a,>  {
+      fn get_from_pointer(reader: &::capnp::private::layout::PointerReader<'a>, default: ::core::option::Option<&'a [capnp::Word]>) -> ::capnp::Result<Reader<'a,>> {
+        ::core::result::Result::Ok(::capnp::traits::FromStructReader::new(reader.get_struct(default)?))
+      }
+    }
+
+    impl <'a,> ::capnp::traits::IntoInternalStructReader<'a> for Reader<'a,>  {
+      fn into_internal_struct_reader(self) -> ::capnp::private::layout::StructReader<'a> {
+        self.reader
+      }
+    }
+
+    impl <'a,> ::capnp::traits::Imbue<'a> for Reader<'a,>  {
+      fn imbue(&mut self, cap_table: &'a ::capnp::private::layout::CapTable) {
+        self.reader.imbue(::capnp::private::layout::CapTableReader::Plain(cap_table))
+      }
+    }
+
+    impl <'a,> Reader<'a,>  {
+      pub fn reborrow(&self) -> Reader<'_,> {
+        Reader { .. *self }
+      }
+
+      pub fn total_size(&self) -> ::capnp::Result<::capnp::MessageSize> {
+        self.reader.total_size()
+      }
+      #[inline]
+      pub fn get_name(self) -> ::capnp::Result<::capnp::text::Reader<'a>> {
+        ::capnp::traits::FromPointerReader::get_from_pointer(&self.reader.get_pointer_field(0), ::core::option::Option::None)
+      }
+      #[inline]
+      pub fn has_name(&self) -> bool {
+        !self.reader.get_pointer_field(0).is_null()
+      }
+      #[inline]
+      pub fn get_node(self) -> ::capnp::Result<crate::schema::nodes::node_capnp::node::Client> {
+        match self.reader.get_pointer_field(1).get_capability() { ::core::result::Result::Ok(c) => ::core::result::Result::Ok(::capnp::capability::FromClientHook::new(c)), ::core::result::Result::Err(e) => ::core::result::Result::Err(e)}
+      }
+    }
+
+    pub struct Builder<'a> { builder: ::capnp::private::layout::StructBuilder<'a> }
+    impl <'a,> ::capnp::traits::HasStructSize for Builder<'a,>  {
+      #[inline]
+      fn struct_size() -> ::capnp::private::layout::StructSize { _private::STRUCT_SIZE }
+    }
+    impl <'a,> ::capnp::traits::HasTypeId for Builder<'a,>  {
+      #[inline]
+      fn type_id() -> u64 { _private::TYPE_ID }
+    }
+    impl <'a,> ::capnp::traits::FromStructBuilder<'a> for Builder<'a,>  {
+      fn new(builder: ::capnp::private::layout::StructBuilder<'a>) -> Builder<'a, > {
+        Builder { builder,  }
+      }
+    }
+
+    impl <'a,> ::capnp::traits::ImbueMut<'a> for Builder<'a,>  {
+      fn imbue_mut(&mut self, cap_table: &'a mut ::capnp::private::layout::CapTable) {
+        self.builder.imbue(::capnp::private::layout::CapTableBuilder::Plain(cap_table))
+      }
+    }
+
+    impl <'a,> ::capnp::traits::FromPointerBuilder<'a> for Builder<'a,>  {
+      fn init_pointer(builder: ::capnp::private::layout::PointerBuilder<'a>, _size: u32) -> Builder<'a,> {
+        ::capnp::traits::FromStructBuilder::new(builder.init_struct(_private::STRUCT_SIZE))
+      }
+      fn get_from_pointer(builder: ::capnp::private::layout::PointerBuilder<'a>, default: ::core::option::Option<&'a [capnp::Word]>) -> ::capnp::Result<Builder<'a,>> {
+        ::core::result::Result::Ok(::capnp::traits::FromStructBuilder::new(builder.get_struct(_private::STRUCT_SIZE, default)?))
+      }
+    }
+
+    impl <'a,> ::capnp::traits::SetPointerBuilder for Reader<'a,>  {
+      fn set_pointer_builder<'b>(pointer: ::capnp::private::layout::PointerBuilder<'b>, value: Reader<'a,>, canonicalize: bool) -> ::capnp::Result<()> { pointer.set_struct(&value.reader, canonicalize) }
+    }
+
+    impl <'a,> Builder<'a,>  {
+      pub fn into_reader(self) -> Reader<'a,> {
+        ::capnp::traits::FromStructReader::new(self.builder.into_reader())
+      }
+      pub fn reborrow(&mut self) -> Builder<'_,> {
+        Builder { .. *self }
+      }
+      pub fn reborrow_as_reader(&self) -> Reader<'_,> {
+        ::capnp::traits::FromStructReader::new(self.builder.into_reader())
+      }
+
+      pub fn total_size(&self) -> ::capnp::Result<::capnp::MessageSize> {
+        self.builder.into_reader().total_size()
+      }
+      #[inline]
+      pub fn get_name(self) -> ::capnp::Result<::capnp::text::Builder<'a>> {
+        ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(0), ::core::option::Option::None)
+      }
+      #[inline]
+      pub fn set_name(&mut self, value: ::capnp::text::Reader<'_>)  {
+        self.builder.get_pointer_field(0).set_text(value);
+      }
+      #[inline]
+      pub fn init_name(self, size: u32) -> ::capnp::text::Builder<'a> {
+        self.builder.get_pointer_field(0).init_text(size)
+      }
+      #[inline]
+      pub fn has_name(&self) -> bool {
+        !self.builder.get_pointer_field(0).is_null()
+      }
+      #[inline]
+      pub fn get_node(self) -> ::capnp::Result<crate::schema::nodes::node_capnp::node::Client> {
+        match self.builder.get_pointer_field(1).get_capability() { ::core::result::Result::Ok(c) => ::core::result::Result::Ok(::capnp::capability::FromClientHook::new(c)), ::core::result::Result::Err(e) => ::core::result::Result::Err(e)}
+      }
+      #[inline]
+      pub fn set_node(&mut self, value: crate::schema::nodes::node_capnp::node::Client)  {
+        self.builder.get_pointer_field(1).set_capability(value.client.hook);
+      }
+    }
+
+    pub struct Pipeline { _typeless: ::capnp::any_pointer::Pipeline }
+    impl ::capnp::capability::FromTypelessPipeline for Pipeline {
+      fn new(typeless: ::capnp::any_pointer::Pipeline) -> Pipeline {
+        Pipeline { _typeless: typeless,  }
+      }
+    }
+    impl Pipeline  {
+      pub fn get_node(&self) -> crate::schema::nodes::node_capnp::node::Client {
+        ::capnp::capability::FromClientHook::new(self._typeless.get_pointer_field(1).as_cap())
+      }
+    }
+    mod _private {
+      use capnp::private::layout;
+      pub const STRUCT_SIZE: layout::StructSize = layout::StructSize { data: 0, pointers: 2 };
+      pub const TYPE_ID: u64 = 0xb1f6_eabb_2abd_28e5;
     }
   }
 }

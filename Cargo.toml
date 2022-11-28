@@ -18,9 +18,10 @@ rustls-pemfile = "1"
 futures-util = "*"
 flatbuffers = "2"
 serde = { version = "1.0" ,features = ["derive"] }
-capnp = "0.14"
-capnp-rpc = "0.14.1"
+capnp = { git = "https://github.com/capnproto/capnproto-rust.git", version = "0.15.0-alpha" }
+capnp-rpc = { git = "https://github.com/capnproto/capnproto-rust.git", version = "0.15.0-alpha" }
 tokio-util = { version = "0.7.4", features = ["rt"] }
+capnp-futures = { git = "https://github.com/capnproto/capnproto-rust.git", version = "0.15.0-alpha" }
 
 [build-dependencies]
 capnpc = "0.14"

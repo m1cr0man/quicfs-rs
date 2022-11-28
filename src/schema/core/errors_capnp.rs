@@ -50,6 +50,10 @@ pub mod error {
       self.reader.total_size()
     }
     #[inline]
+    pub fn get_code(self) -> u16 {
+      self.reader.get_data_field::<u16>(0)
+    }
+    #[inline]
     pub fn get_message(self) -> ::capnp::Result<::capnp::text::Reader<'a>> {
       ::capnp::traits::FromPointerReader::get_from_pointer(&self.reader.get_pointer_field(0), ::core::option::Option::None)
     }
@@ -108,6 +112,14 @@ pub mod error {
       self.builder.into_reader().total_size()
     }
     #[inline]
+    pub fn get_code(self) -> u16 {
+      self.builder.get_data_field::<u16>(0)
+    }
+    #[inline]
+    pub fn set_code(&mut self, value: u16)  {
+      self.builder.set_data_field::<u16>(0, value);
+    }
+    #[inline]
     pub fn get_message(self) -> ::capnp::Result<::capnp::text::Builder<'a>> {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(0), ::core::option::Option::None)
     }
@@ -135,7 +147,34 @@ pub mod error {
   }
   mod _private {
     use capnp::private::layout;
-    pub const STRUCT_SIZE: layout::StructSize = layout::StructSize { data: 0, pointers: 1 };
+    pub const STRUCT_SIZE: layout::StructSize = layout::StructSize { data: 1, pointers: 1 };
     pub const TYPE_ID: u64 = 0x8d6d_6113_0c76_d83b;
   }
+}
+
+#[repr(u16)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ErrorCode {
+  Unknown = 0,
+  NoEntity = 1,
+  Exists = 2,
+}
+impl ::capnp::traits::FromU16 for ErrorCode {
+  #[inline]
+  fn from_u16(value: u16) -> ::core::result::Result<ErrorCode, ::capnp::NotInSchema> {
+    match value {
+      0 => ::core::result::Result::Ok(ErrorCode::Unknown),
+      1 => ::core::result::Result::Ok(ErrorCode::NoEntity),
+      2 => ::core::result::Result::Ok(ErrorCode::Exists),
+      n => ::core::result::Result::Err(::capnp::NotInSchema(n)),
+    }
+  }
+}
+impl ::capnp::traits::ToU16 for ErrorCode {
+  #[inline]
+  fn to_u16(self) -> u16 { self as u16 }
+}
+impl ::capnp::traits::HasTypeId for ErrorCode {
+  #[inline]
+  fn type_id() -> u64 { 0xd129_c017_cb78_c605u64 }
 }
