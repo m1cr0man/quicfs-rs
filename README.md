@@ -14,6 +14,14 @@ That should be it. Your default terminal in VS Code should be "Nix Shell", and
 rust-analyzer should load just fine. If not, use ctrl+shift+p -> "Nix-env: Select Environment"
 and make sure the shell.nix is selected.
 
+### Generating code from the Thrift schema
+
+Edit the IDL then you can run:
+
+```bash
+thrift -gen rs -out src -r -strict schema/quicfs.thrift
+```
+
 ## Updating Rust
 
 Just change the rustVersion in [shell.nix](./shell.nix). You may also have to update
