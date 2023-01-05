@@ -12,3 +12,6 @@ Cargo.lock
 # Custom entries
 tools/vscode-lldb
 certs/
+hidden/
+.venv/
+.venv
