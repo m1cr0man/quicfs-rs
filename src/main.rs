@@ -1,7 +1,43 @@
 use futures::prelude::*;
-use libp2p::swarm::{Swarm, SwarmEvent};
-use libp2p::{core::muxing::StreamMuxerBox, identity, ping, quic, Multiaddr, PeerId, Transport};
+use libp2p::swarm::{NetworkBehaviour, Swarm, SwarmEvent};
+use libp2p::{
+    core::muxing::StreamMuxerBox,
+    identity,
+    kad::{store::MemoryStore, Kademlia},
+    ping, quic,
+    request_response::RequestResponse,
+    Multiaddr, PeerId, Transport,
+};
 use std::error::Error;
+
+mod sharing;
+
+#[derive(NetworkBehaviour)]
+#[behaviour(inject_event = true)]
+struct QuicfsPeer {
+    ping: ping::Behaviour,
+    // kademlia: Kademlia<MemoryStore>,
+    request_response: RequestResponse,
+}
+
+// This is done automatically if behaviour(out_event) is not set
+// #[derive(Debug)]
+// enum QuicfsPeerEvent {
+//     Kademlia(KademliaEvent),
+//     Ping(ping::Event),
+// }
+
+// impl From<KademliaEvent> for QuicfsPeerEvent {
+//     fn from(event: KademliaEvent) -> Self {
+//         Self::Kademlia(event)
+//     }
+// }
+
+// impl From<ping::Event> for QuicfsPeerEvent {
+//     fn from(event: ping::Event) -> Self {
+//         Self::Ping(event)
+//     }
+// }
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -16,7 +52,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .map(|(p, c), _| (p, StreamMuxerBox::new(c)))
         .boxed();
 
-    let behaviour = ping::Behaviour::new(ping::Config::new().with_keep_alive(true));
+    let behaviour = ping::Behaviour::new(ping::Config::new());
+
+    let behaviour = QuicfsPeer {
+        kademlia: Kademlia::new(local_peer_id, MemoryStore::new(local_peer_id)),
+        ping: behaviour,
+    };
 
     let mut swarm = Swarm::with_async_std_executor(transport, behaviour, local_peer_id);
 

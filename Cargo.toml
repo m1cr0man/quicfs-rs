@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 async-std = { version = "1.12.0", features = ["attributes"] }
 futures = "0.3.25"
-libp2p = { version = "0.50.0", features = ["quic", "async-std", "ping"] }
+libp2p = { version = "0.50.0", features = ["quic", "async-std", "ping", "kad", "macros", "request-response"] }
