@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package rpc;
+
+enum RpcDirection {
+  RPC_DIRECTION_UNSPECIFIED = 0;
+  RPC_DIRECTION_REQUEST = 1;
+  RPC_DIRECTION_RESPONSE = 2;
+}
+
+message RpcData {
+  string method = 1;
+  bytes body = 2;
+  RpcDirection direction = 3;
+}

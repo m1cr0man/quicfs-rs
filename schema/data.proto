@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package quicfs.data;
+
+import "google/protobuf/timestamp.proto";
+
+enum FileType {
+  FILE_TYPE_UNSPECIFIED = 0;
+  FILE_TYPE_REGULAR = 1;
+  FILE_TYPE_DIRECTORY = 2;
+  FILE_TYPE_BLOCK = 3;
+  FILE_TYPE_CHARACTER = 4;
+  FILE_TYPE_LINK = 5;
+  FILE_TYPE_SOCKET = 6;
+  FILE_TYPE_FIFO = 7;
+}
+
+message FileAttributes {
+  bytes handle_id = 1;
+  bytes parent_handle_id = 2;
+  string name = 3;
+  FileType file_type = 4;
+  uint32 mode = 5;
+  uint32 nlink = 6;
+  uint32 uid = 7;
+  uint32 gid = 8;
+  uint64 size = 9;
+  uint64 used = 10;
+  uint64 offset = 11;
+  google.protobuf.Timestamp mtime = 12;
+  google.protobuf.Timestamp ctime = 13;
+  google.protobuf.Timestamp atime = 14;
+}
+
+message FSStat {
+  uint64 tbytes = 1;
+  uint64 fbytes = 2;
+  uint64 abytes = 3;
+  uint64 tfiles = 4;
+  uint64 ffiles = 5;
+  uint64 afiles = 6;
+}

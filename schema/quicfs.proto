@@ -1,0 +1,121 @@
+syntax = "proto3";
+
+package quicfs;
+
+import "data.proto";
+import "google/protobuf/descriptor.proto";
+import "google/protobuf/empty.proto";
+
+extend google.protobuf.MethodOptions {
+  // Must be higher than 1000
+  uint64 repeated_response = 2000;
+}
+
+message GenericNodeRequest {
+  bytes handle_id = 1;
+}
+
+message AsyncResponse {
+  oneof async_data {
+    string error = 1;
+    // Will be used in the future for distributed responses
+    uint32 servers = 2;
+  }
+}
+
+// BEGIN Mount
+
+message MountRequest {
+  string path = 1;
+}
+
+message MountResponse {
+  oneof mount_data {
+    string error = 1;
+    bytes handle_id = 2;
+  }
+}
+
+// END Mount
+
+// BEGIN FSStat
+
+message FSStatResponse {
+  oneof fsstat_data {
+    string error = 1;
+    data.FSStat fsstat = 2;
+  }
+}
+
+// END FSStat
+
+// BEGIN Getattr
+
+message GetattrResponse {
+  oneof getattr_data {
+    string error = 1;
+    data.FileAttributes attributes = 2;
+  };
+}
+
+// END Getattr
+
+// BEGIN Readdir
+
+message ReaddirRequest {
+  bytes handle_id = 1;
+  bytes response_id = 2;
+}
+
+message ReaddirResponse {
+  string error = 1;
+  repeated data.FileAttributes attributes = 2;
+  uint64 offset = 3;
+  uint64 size = 4;
+  bool eof = 5;
+}
+
+// END Readdir
+
+// BEGIN Read
+
+message ReadRequest {
+  bytes handle_id = 1;
+  uint64 offset = 2;
+  uint64 size = 3;
+}
+
+message ReadResponse {
+  string error = 1;
+  bytes data = 2;
+  uint64 offset = 3;
+  uint64 size = 4;
+  bool eof = 5;
+}
+
+// END Read
+
+service Quicfs {
+  // Meta/Server related
+  rpc FSStat(GenericNodeRequest)
+    returns (FSStatResponse);
+
+  rpc Mount(MountRequest)
+    returns (MountResponse);
+
+  // Any node
+  rpc Getattr(GenericNodeRequest)
+    returns (GetattrResponse);
+
+  // Directories only
+  rpc Readdir(ReaddirRequest)
+  returns (ReaddirResponse) {
+    option (repeated_response) = 1;
+  };
+
+  // Files only
+  rpc Read(ReadRequest)
+  returns (ReadResponse) {
+    option (repeated_response) = 1;
+  };
+}

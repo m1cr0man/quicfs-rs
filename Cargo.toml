@@ -2,10 +2,20 @@
 name = "quicfs-rs"
 version = "0.1.0"
 edition = "2021"
+build = "build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 async-std = { version = "1.12.0", features = ["attributes"] }
+async-trait = "0.1.61"
 futures = "0.3.25"
 libp2p = { version = "0.50.0", features = ["quic", "async-std", "ping", "kad", "macros", "request-response"] }
+prost = { version = "0.11.5", default-features = false, features = ["std"] }
+prost-build = "0.11.5"
+prost-types = "0.11.5"
+
+[build-dependencies]
+prost = { version = "0.11.5", default-features = false, features = ["std"] }
+prost-build = "0.11.5"
+prost-types = "0.11.5"
