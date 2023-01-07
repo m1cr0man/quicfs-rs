@@ -1,23 +1,24 @@
 use futures::prelude::*;
+use libp2p::request_response::ProtocolSupport;
 use libp2p::swarm::{NetworkBehaviour, Swarm, SwarmEvent};
 use libp2p::{
-    core::muxing::StreamMuxerBox,
-    identity,
-    kad::{store::MemoryStore, Kademlia},
-    ping, quic,
-    request_response::RequestResponse,
-    Multiaddr, PeerId, Transport,
+    core::muxing::StreamMuxerBox, identity, ping, quic, request_response, Multiaddr, PeerId,
+    Transport,
 };
 use std::error::Error;
 
-mod sharing;
+use codec::QuicfsCodec;
+use schema::rpc::RpcData;
+mod codec;
+mod schema;
+// mod sharing;
 
 #[derive(NetworkBehaviour)]
 #[behaviour(inject_event = true)]
 struct QuicfsPeer {
     ping: ping::Behaviour,
     // kademlia: Kademlia<MemoryStore>,
-    request_response: RequestResponse,
+    request_response: request_response::RequestResponse<QuicfsCodec>,
 }
 
 // This is done automatically if behaviour(out_event) is not set
@@ -54,8 +55,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let behaviour = ping::Behaviour::new(ping::Config::new());
 
+    let qcodec = QuicfsCodec {};
+
     let behaviour = QuicfsPeer {
-        kademlia: Kademlia::new(local_peer_id, MemoryStore::new(local_peer_id)),
+        request_response: request_response::RequestResponse::new(
+            qcodec,
+            [(codec::QuicfsProtocol {}, ProtocolSupport::Full)],
+            request_response::RequestResponseConfig::default(),
+        ),
         ping: behaviour,
     };
 
@@ -72,6 +79,49 @@ async fn main() -> Result<(), Box<dyn Error>> {
     loop {
         match swarm.select_next_some().await {
             SwarmEvent::NewListenAddr { address, .. } => println!("Listening on {:?}", address),
+            SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+                println!("Connection with {} established", peer_id);
+                swarm.behaviour_mut().request_response.send_request(
+                    &peer_id,
+                    RpcData {
+                        method: "testmethod".into(),
+                        body: "oh hi mark".into(),
+                    },
+                );
+            }
+            SwarmEvent::Behaviour(QuicfsPeerEvent::RequestResponse(
+                request_response::RequestResponseEvent::Message { peer, message },
+            )) => match message {
+                request_response::RequestResponseMessage::Request {
+                    request_id,
+                    request,
+                    channel,
+                } => {
+                    println!(
+                        "{:?} has sent RPC request: {} {}",
+                        peer, request_id, request.method
+                    );
+                    // Unfortunately request_response uses a oneshot queue
+                    // internally so I can't use it to queue up multiple responses to the same
+                    // request
+                    swarm
+                        .behaviour_mut()
+                        .request_response
+                        .send_response(channel, "oh hi mark".into())
+                        .expect("Failed to respond")
+                }
+                request_response::RequestResponseMessage::Response {
+                    request_id,
+                    response,
+                } => {
+                    println!(
+                        "{:?} has sent RPC response: {} {:?}",
+                        peer,
+                        request_id,
+                        std::str::from_utf8(&response).expect("Invalid UTF8 response"),
+                    );
+                }
+            },
             SwarmEvent::Behaviour(event) => println!("{:?}", event),
             _ => {}
         }

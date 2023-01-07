@@ -1,7 +1,3 @@
-use crate::protocol::{ProtobufProtocol, Protocol};
-use crate::server::{Handler, HandlerError};
-use prost::Message;
-use std::pin::Pin;
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GenericNodeRequest {
@@ -128,74 +124,4 @@ pub struct ReadResponse {
     pub size: u64,
     #[prost(bool, tag = "5")]
     pub eof: bool,
-}
-pub trait QuicfsImpl {
-    async fn fs_stat(&mut self, request: GenericNodeRequest) -> FsStatResponse;
-    async fn mount(&mut self, request: MountRequest) -> MountResponse;
-    async fn getattr(&mut self, request: GenericNodeRequest) -> GetattrResponse;
-    async fn readdir(&mut self, request: ReaddirRequest) -> ReaddirResponse;
-    async fn read(&mut self, request: ReadRequest) -> ReadResponse;
-}
-pub struct QuicfsClient<T: crate::transport::Transport> {
-    transport: T,
-}
-impl<T: crate::transport::Transport> QuicfsImpl for QuicfsClient<T> {
-    async fn fs_stat(&mut self, request: GenericNodeRequest) -> FsStatResponse {
-        todo!()
-    }
-    async fn mount(&mut self, request: MountRequest) -> MountResponse {
-        todo!()
-    }
-    async fn getattr(&mut self, request: GenericNodeRequest) -> GetattrResponse {
-        todo!()
-    }
-    async fn readdir(&mut self, request: ReaddirRequest) -> ReaddirResponse {
-        todo!()
-    }
-    async fn read(&mut self, request: ReadRequest) -> ReadResponse {
-        todo!()
-    }
-}
-impl<T: QuicfsImpl + Clone + Unpin> Handler for T {
-    async fn handle(
-        mut self: Pin<&mut Self>,
-        proto: Pin<&mut ProtobufProtocol<crate::transport::QuicTransportPeer>>,
-    ) -> Result<(), HandlerError> {
-        let proto = proto.get_mut();
-        if let Ok(msg) = proto.read_message::<crate::schema::rpc::RpcData>().await {
-            match msg.method.as_str() {
-                "Quicfs::fs_stat" => {
-                    let req = GenericNodeRequest::decode(msg.body.as_ref())
-                        .map_err(HandlerError::from)?;
-                    let resp = self.fs_stat(req).await;
-                    proto.write_message(resp).await.map_err(HandlerError::from)?;
-                }
-                "Quicfs::mount" => {
-                    let req = MountRequest::decode(msg.body.as_ref())
-                        .map_err(HandlerError::from)?;
-                    let resp = self.mount(req).await;
-                    proto.write_message(resp).await.map_err(HandlerError::from)?;
-                }
-                "Quicfs::getattr" => {
-                    let req = GenericNodeRequest::decode(msg.body.as_ref())
-                        .map_err(HandlerError::from)?;
-                    let resp = self.getattr(req).await;
-                    proto.write_message(resp).await.map_err(HandlerError::from)?;
-                }
-                "Quicfs::readdir" => {
-                    let req = ReaddirRequest::decode(msg.body.as_ref())
-                        .map_err(HandlerError::from)?;
-                    let resp = self.readdir(req).await;
-                    proto.write_message(resp).await.map_err(HandlerError::from)?;
-                }
-                "Quicfs::read" => {
-                    let req = ReadRequest::decode(msg.body.as_ref())
-                        .map_err(HandlerError::from)?;
-                    let resp = self.read(req).await;
-                    proto.write_message(resp).await.map_err(HandlerError::from)?;
-                }
-            };
-        }
-        Ok(())
-    }
 }

@@ -11,5 +11,4 @@ enum RpcDirection {
 message RpcData {
   string method = 1;
   bytes body = 2;
-  RpcDirection direction = 3;
 }

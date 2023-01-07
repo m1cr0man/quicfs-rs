@@ -16,6 +16,7 @@ fn is_repeated_response(options: Vec<prost_types::UninterpretedOption>) -> bool 
 
 impl prost_build::ServiceGenerator for QuicfsServiceGenerator {
     fn generate(&mut self, service: prost_build::Service, buf: &mut String) {
+        return;
         buf.insert_str(
             0,
             "\

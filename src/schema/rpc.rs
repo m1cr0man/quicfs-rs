@@ -5,8 +5,6 @@ pub struct RpcData {
     pub method: ::prost::alloc::string::String,
     #[prost(bytes = "vec", tag = "2")]
     pub body: ::prost::alloc::vec::Vec<u8>,
-    #[prost(enumeration = "RpcDirection", tag = "3")]
-    pub direction: i32,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
