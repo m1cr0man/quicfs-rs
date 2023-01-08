@@ -3,8 +3,8 @@
 pub struct RpcData {
     #[prost(string, tag = "1")]
     pub method: ::prost::alloc::string::String,
-    #[prost(bytes = "vec", tag = "2")]
-    pub body: ::prost::alloc::vec::Vec<u8>,
+    #[prost(bytes = "bytes", tag = "2")]
+    pub body: ::prost::bytes::Bytes,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]

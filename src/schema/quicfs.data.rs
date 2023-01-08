@@ -1,10 +1,10 @@
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct FileAttributes {
-    #[prost(bytes = "vec", tag = "1")]
-    pub handle_id: ::prost::alloc::vec::Vec<u8>,
-    #[prost(bytes = "vec", tag = "2")]
-    pub parent_handle_id: ::prost::alloc::vec::Vec<u8>,
+    #[prost(bytes = "bytes", tag = "1")]
+    pub handle_id: ::prost::bytes::Bytes,
+    #[prost(bytes = "bytes", tag = "2")]
+    pub parent_handle_id: ::prost::bytes::Bytes,
     #[prost(string, tag = "3")]
     pub name: ::prost::alloc::string::String,
     #[prost(enumeration = "FileType", tag = "4")]

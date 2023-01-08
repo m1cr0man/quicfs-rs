@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 extern crate prost_build;
 extern crate prost_types;
 
@@ -16,16 +18,145 @@ fn is_repeated_response(options: Vec<prost_types::UninterpretedOption>) -> bool 
 
 impl prost_build::ServiceGenerator for QuicfsServiceGenerator {
     fn generate(&mut self, service: prost_build::Service, buf: &mut String) {
-        return;
         buf.insert_str(
             0,
             "\
-            use crate::protocol::{ProtobufProtocol, Protocol};\n\
-            use crate::server::{Handler, HandlerError};\n\
             use prost::Message;\n\
-            use std::pin::Pin;\n\
+            use crate::schema::rpc::RpcData;\n\
+            use crate::{encode_rpc, decode_rpc, schema_helpers::RpcCodec};\n\
         ",
         );
+
+        let mut method_names = format!(
+            "#[derive(Debug)]\n\
+            pub enum {}Method {{\n\
+                Undefined,\n\
+            ",
+            service.name
+        );
+
+        // TODO use derive macro instead
+        let mut method_names_into_str = format!(
+            "impl From<{}Method> for String {{\n\
+                fn from(method: {}Method) -> Self {{\n\
+                    (match method {{\n\
+                        {}Method::Undefined => \"Undefined\",\n\
+            ",
+            service.name, service.name, service.name
+        );
+        let mut str_into_method_names = format!(
+            "impl From<String> for {}Method {{\n\
+                fn from(method_str: String) -> Self {{\n\
+                    match method_str.as_str() {{\n\
+                        &_ => {}Method::Undefined,\n\
+            ",
+            service.name, service.name
+        );
+
+        let mut request_enum_from_rpc = format!(
+            "impl RpcCodec<{}Request> for {}Request {{\n\
+                fn from_rpc(rpc: RpcData) -> Result<Self, prost::DecodeError> {{\n\
+                    let method: {}Method = rpc.method.clone().into();\n\
+                    match method {{\n\
+            ",
+            service.name, service.name, service.name
+        );
+        let mut response_enum_from_rpc = format!(
+            "impl RpcCodec<{}Response> for {}Response {{\n\
+                fn from_rpc(rpc: RpcData) -> Result<Self, prost::DecodeError> {{\n\
+                    let method: {}Method = rpc.method.clone().into();\n\
+                    match method {{\n\
+            ",
+            service.name, service.name, service.name
+        );
+
+        let mut request_enum_to_rpc = format!(
+            "fn to_rpc(&self) -> RpcData {{\n\
+                match self {{\n\
+            ",
+        );
+        let mut response_enum_to_rpc = format!(
+            "fn to_rpc(&self) -> RpcData {{\n\
+                match self {{\n\
+            ",
+        );
+
+        let mut input_types = HashSet::new();
+        let mut output_types = HashSet::new();
+
+        for method in service.methods {
+            method_names.push_str(&format!("{},\n", method.proto_name));
+            method_names_into_str.push_str(&format!(
+                "{}Method::{} => \"{}::{}\",\n\
+                ",
+                service.name, method.proto_name, service.name, method.proto_name
+            ));
+            str_into_method_names.push_str(&format!(
+                "\"{}::{}\" => {}Method::{},\n\
+                ",
+                service.name, method.proto_name, service.name, method.proto_name
+            ));
+            input_types.insert(method.input_type.clone());
+            output_types.insert(method.output_type.clone());
+            request_enum_from_rpc.push_str(&format!(
+                "{}Method::{} => decode_rpc!({}, rpc),\n",
+                service.name,
+                method.proto_name,
+                method.input_type // "{}Method::{} => \n\
+                                  //     Ok(Self::{}({}::decode(rpc.body)?))\n\
+                                  // ,",
+                                  // service.name, method.proto_name, method.input_type, method.input_type,
+            ));
+            response_enum_from_rpc.push_str(&format!(
+                "{}Method::{} => decode_rpc!({}, rpc),\n",
+                service.name, method.proto_name, method.output_type
+            ));
+            request_enum_to_rpc.push_str(&format!(
+                "Self::{}(v) => encode_rpc!({}Method::{}, v),\n",
+                method.input_type, service.name, method.proto_name
+            ));
+            response_enum_to_rpc.push_str(&format!(
+                "Self::{}(v) => encode_rpc!({}Method::{}, v),\n",
+                method.output_type, service.name, method.proto_name
+            ));
+        }
+
+        let default_case = format!("QuicfsMethod::Undefined => Err(prost::DecodeError::new(format!(\"Unrecognised RPC method {{}}\", rpc.method))),");
+        request_enum_from_rpc.push_str(&default_case.clone());
+        response_enum_from_rpc.push_str(&default_case);
+
+        let mut request_enum = format!("#[derive(Debug)]\npub enum {}Request {{", service.name);
+        for typ in input_types.iter() {
+            request_enum.push_str(&format!("{}({}),", typ, typ));
+        }
+
+        let mut response_enum = format!("#[derive(Debug)]\npub enum {}Response {{", service.name);
+        for typ in output_types.iter() {
+            response_enum.push_str(&format!("{}({}),", typ, typ));
+        }
+
+        method_names.push_str("}");
+        buf.push_str(&method_names);
+        method_names_into_str.push_str("}).to_string() } }");
+        buf.push_str(&method_names_into_str);
+        str_into_method_names.push_str("} } }");
+        buf.push_str(&str_into_method_names);
+
+        request_enum.push_str("}");
+        response_enum.push_str("}");
+        buf.push_str(&request_enum);
+        buf.push_str(&response_enum);
+
+        request_enum_from_rpc.push_str("} }");
+        response_enum_from_rpc.push_str("} }");
+        request_enum_from_rpc.push_str(&request_enum_to_rpc);
+        response_enum_from_rpc.push_str(&response_enum_to_rpc);
+        request_enum_from_rpc.push_str("} } }");
+        response_enum_from_rpc.push_str("} } }");
+        buf.push_str(&request_enum_from_rpc);
+        buf.push_str(&response_enum_from_rpc);
+
+        return;
         let mut client = format!(
             "pub struct {}Client<T: crate::transport::Transport> {{",
             service.name
@@ -100,6 +231,7 @@ fn main() {
     conf.out_dir("src/schema");
     conf.include_file("mod.rs");
     conf.service_generator(Box::new(QuicfsServiceGenerator {}));
+    conf.bytes(&["."]);
     conf.compile_protos(&["schema/quicfs.proto", "schema/rpc.proto"], &["schema/"])
         .unwrap();
 }

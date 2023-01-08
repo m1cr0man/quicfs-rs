@@ -64,7 +64,6 @@ message GetattrResponse {
 
 message ReaddirRequest {
   bytes handle_id = 1;
-  bytes response_id = 2;
 }
 
 message ReaddirResponse {

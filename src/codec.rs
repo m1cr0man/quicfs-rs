@@ -1,13 +1,42 @@
 use async_std::io;
-use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use futures::{AsyncRead, AsyncWrite};
 use libp2p::core::upgrade::{read_length_prefixed, write_length_prefixed};
 use libp2p::request_response::codec::{ProtocolName, RequestResponseCodec};
 
+use crate::schema::quicfs::{QuicfsRequest, QuicfsResponse};
 use crate::schema::rpc::RpcData;
+use crate::schema_helpers::RpcCodec;
 use prost::Message;
 
 #[derive(Debug, Clone)]
 pub struct QuicfsProtocol();
+
+impl QuicfsProtocol {
+    async fn decode<M, T>(io: &mut T) -> io::Result<M>
+    where
+        M: RpcCodec<M>,
+        T: AsyncRead + Unpin + Send,
+    {
+        let data = read_length_prefixed(io, 1_048_576).await?;
+
+        if data.is_empty() {
+            return Err(io::ErrorKind::UnexpectedEof.into());
+        }
+
+        let rpc: io::Result<RpcData> =
+            RpcData::decode(data.as_slice()).map_err(|_| io::ErrorKind::InvalidInput.into());
+        M::from_rpc(rpc?).map_err(|_| io::ErrorKind::InvalidInput.into())
+    }
+
+    async fn encode<M, T>(msg: M, io: &mut T) -> io::Result<()>
+    where
+        M: RpcCodec<M>,
+        T: AsyncWrite + Unpin + Send,
+    {
+        let data = msg.to_rpc().encode_to_vec();
+        write_length_prefixed(io, data).await
+    }
+}
 
 impl ProtocolName for QuicfsProtocol {
     fn protocol_name(&self) -> &[u8] {
@@ -18,29 +47,19 @@ impl ProtocolName for QuicfsProtocol {
 #[derive(Clone)]
 pub struct QuicfsCodec();
 
-#[derive(Debug)]
-pub struct Test(Vec<u8>);
-
 #[async_trait::async_trait]
 impl RequestResponseCodec for QuicfsCodec {
     type Protocol = QuicfsProtocol;
 
-    // TODO
-    type Request = RpcData;
+    type Request = QuicfsRequest;
 
-    type Response = Vec<u8>;
+    type Response = QuicfsResponse;
 
     async fn read_request<T>(&mut self, _: &Self::Protocol, io: &mut T) -> io::Result<Self::Request>
     where
         T: AsyncRead + Unpin + Send,
     {
-        let data = read_length_prefixed(io, 1_048_576).await?;
-
-        if data.is_empty() {
-            return Err(io::ErrorKind::UnexpectedEof.into());
-        }
-
-        Self::Request::decode(data.as_slice()).map_err(|_| io::ErrorKind::InvalidInput.into())
+        Self::Protocol::decode(io).await
     }
 
     async fn read_response<T>(
@@ -51,9 +70,7 @@ impl RequestResponseCodec for QuicfsCodec {
     where
         T: AsyncRead + Unpin + Send,
     {
-        let mut out = Vec::new();
-        let _ = io.read_to_end(&mut out).await;
-        Ok(out)
+        Self::Protocol::decode(io).await
     }
 
     async fn write_request<T>(
@@ -65,8 +82,7 @@ impl RequestResponseCodec for QuicfsCodec {
     where
         T: AsyncWrite + Unpin + Send,
     {
-        let data = req.encode_to_vec();
-        write_length_prefixed(io, data).await
+        Self::Protocol::encode(req, io).await
     }
 
     async fn write_response<T>(
@@ -78,6 +94,6 @@ impl RequestResponseCodec for QuicfsCodec {
     where
         T: AsyncWrite + Unpin + Send,
     {
-        io.write_all(&res).await
+        Self::Protocol::encode(res, io).await
     }
 }

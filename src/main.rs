@@ -1,3 +1,4 @@
+use codec::QuicfsCodec;
 use futures::prelude::*;
 use libp2p::request_response::ProtocolSupport;
 use libp2p::swarm::{NetworkBehaviour, Swarm, SwarmEvent};
@@ -5,40 +6,21 @@ use libp2p::{
     core::muxing::StreamMuxerBox, identity, ping, quic, request_response, Multiaddr, PeerId,
     Transport,
 };
+use schema::quicfs::{QuicfsRequest, ReaddirRequest};
 use std::error::Error;
 
-use codec::QuicfsCodec;
-use schema::rpc::RpcData;
+use crate::schema::quicfs::{QuicfsResponse, ReaddirResponse};
 mod codec;
 mod schema;
+mod schema_helpers;
 // mod sharing;
 
 #[derive(NetworkBehaviour)]
 #[behaviour(inject_event = true)]
 struct QuicfsPeer {
     ping: ping::Behaviour,
-    // kademlia: Kademlia<MemoryStore>,
     request_response: request_response::RequestResponse<QuicfsCodec>,
 }
-
-// This is done automatically if behaviour(out_event) is not set
-// #[derive(Debug)]
-// enum QuicfsPeerEvent {
-//     Kademlia(KademliaEvent),
-//     Ping(ping::Event),
-// }
-
-// impl From<KademliaEvent> for QuicfsPeerEvent {
-//     fn from(event: KademliaEvent) -> Self {
-//         Self::Kademlia(event)
-//     }
-// }
-
-// impl From<ping::Event> for QuicfsPeerEvent {
-//     fn from(event: ping::Event) -> Self {
-//         Self::Ping(event)
-//     }
-// }
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -83,10 +65,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 println!("Connection with {} established", peer_id);
                 swarm.behaviour_mut().request_response.send_request(
                     &peer_id,
-                    RpcData {
-                        method: "testmethod".into(),
-                        body: "oh hi mark".into(),
-                    },
+                    QuicfsRequest::ReaddirRequest(ReaddirRequest {
+                        handle_id: "1".into(),
+                    }),
                 );
             }
             SwarmEvent::Behaviour(QuicfsPeerEvent::RequestResponse(
@@ -98,17 +79,35 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     channel,
                 } => {
                     println!(
-                        "{:?} has sent RPC request: {} {}",
-                        peer, request_id, request.method
+                        "{:?} has sent RPC request: {} {:?}",
+                        peer, request_id, request
                     );
-                    // Unfortunately request_response uses a oneshot queue
-                    // internally so I can't use it to queue up multiple responses to the same
-                    // request
-                    swarm
-                        .behaviour_mut()
-                        .request_response
-                        .send_response(channel, "oh hi mark".into())
-                        .expect("Failed to respond")
+                    match request {
+                        QuicfsRequest::ReaddirRequest(req) => {
+                            println!("Attempt to readdir {:?}", req.handle_id);
+                            // Unfortunately request_response uses a oneshot queue
+                            // internally so I can't use it to queue up multiple responses to the same
+                            // request
+                            // TODO generate an RpcData
+                            swarm
+                                .behaviour_mut()
+                                .request_response
+                                .send_response(
+                                    channel,
+                                    QuicfsResponse::ReaddirResponse(ReaddirResponse {
+                                        attributes: Vec::new(),
+                                        eof: true,
+                                        error: "".to_string(),
+                                        offset: 0,
+                                        size: 0,
+                                    }),
+                                )
+                                .expect("Failed to respond")
+                        }
+                        req => {
+                            println!("Unhandled RPC request {:?}", req);
+                        }
+                    };
                 }
                 request_response::RequestResponseMessage::Response {
                     request_id,
@@ -116,9 +115,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 } => {
                     println!(
                         "{:?} has sent RPC response: {} {:?}",
-                        peer,
-                        request_id,
-                        std::str::from_utf8(&response).expect("Invalid UTF8 response"),
+                        peer, request_id, response,
                     );
                 }
             },
