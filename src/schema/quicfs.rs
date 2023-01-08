@@ -1,6 +1,6 @@
 use prost::Message;
 use crate::schema::rpc::RpcData;
-use crate::{encode_rpc, decode_rpc, schema_helpers::RpcCodec};
+use crate::{encode_rpc, schema_helpers::{RpcCodec, decode_rpc}};
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GenericNodeRequest {
@@ -151,39 +151,40 @@ impl From<QuicfsMethod> for String {
 impl From<String> for QuicfsMethod {
     fn from(method_str: String) -> Self {
         match method_str.as_str() {
-            &_ => QuicfsMethod::Undefined,
             "Quicfs::FSStat" => QuicfsMethod::FSStat,
             "Quicfs::Mount" => QuicfsMethod::Mount,
             "Quicfs::Getattr" => QuicfsMethod::Getattr,
             "Quicfs::Readdir" => QuicfsMethod::Readdir,
             "Quicfs::Read" => QuicfsMethod::Read,
+            &_ => QuicfsMethod::Undefined,
         }
     }
 }
 #[derive(Debug)]
 pub enum QuicfsRequest {
-    GenericNodeRequest(GenericNodeRequest),
-    ReaddirRequest(ReaddirRequest),
-    MountRequest(MountRequest),
-    ReadRequest(ReadRequest),
+    FSStat(GenericNodeRequest),
+    Mount(MountRequest),
+    Getattr(GenericNodeRequest),
+    Readdir(ReaddirRequest),
+    Read(ReadRequest),
 }
 #[derive(Debug)]
 pub enum QuicfsResponse {
-    GetattrResponse(GetattrResponse),
-    FsStatResponse(FsStatResponse),
-    ReaddirResponse(ReaddirResponse),
-    ReadResponse(ReadResponse),
-    MountResponse(MountResponse),
+    FSStat(FsStatResponse),
+    Mount(MountResponse),
+    Getattr(GetattrResponse),
+    Readdir(ReaddirResponse),
+    Read(ReadResponse),
 }
 impl RpcCodec<QuicfsRequest> for QuicfsRequest {
     fn from_rpc(rpc: RpcData) -> Result<Self, prost::DecodeError> {
         let method: QuicfsMethod = rpc.method.clone().into();
         match method {
-            QuicfsMethod::FSStat => decode_rpc!(GenericNodeRequest, rpc),
-            QuicfsMethod::Mount => decode_rpc!(MountRequest, rpc),
-            QuicfsMethod::Getattr => decode_rpc!(GenericNodeRequest, rpc),
-            QuicfsMethod::Readdir => decode_rpc!(ReaddirRequest, rpc),
-            QuicfsMethod::Read => decode_rpc!(ReadRequest, rpc),
+            QuicfsMethod::FSStat => decode_rpc(rpc).map(|v| Self::FSStat(v)),
+            QuicfsMethod::Mount => decode_rpc(rpc).map(|v| Self::Mount(v)),
+            QuicfsMethod::Getattr => decode_rpc(rpc).map(|v| Self::Getattr(v)),
+            QuicfsMethod::Readdir => decode_rpc(rpc).map(|v| Self::Readdir(v)),
+            QuicfsMethod::Read => decode_rpc(rpc).map(|v| Self::Read(v)),
             QuicfsMethod::Undefined => {
                 Err(
                     prost::DecodeError::new(
@@ -195,11 +196,11 @@ impl RpcCodec<QuicfsRequest> for QuicfsRequest {
     }
     fn to_rpc(&self) -> RpcData {
         match self {
-            Self::GenericNodeRequest(v) => encode_rpc!(QuicfsMethod::FSStat, v),
-            Self::MountRequest(v) => encode_rpc!(QuicfsMethod::Mount, v),
-            Self::GenericNodeRequest(v) => encode_rpc!(QuicfsMethod::Getattr, v),
-            Self::ReaddirRequest(v) => encode_rpc!(QuicfsMethod::Readdir, v),
-            Self::ReadRequest(v) => encode_rpc!(QuicfsMethod::Read, v),
+            Self::FSStat(v) => encode_rpc!(QuicfsMethod::FSStat, v),
+            Self::Mount(v) => encode_rpc!(QuicfsMethod::Mount, v),
+            Self::Getattr(v) => encode_rpc!(QuicfsMethod::Getattr, v),
+            Self::Readdir(v) => encode_rpc!(QuicfsMethod::Readdir, v),
+            Self::Read(v) => encode_rpc!(QuicfsMethod::Read, v),
         }
     }
 }
@@ -207,11 +208,11 @@ impl RpcCodec<QuicfsResponse> for QuicfsResponse {
     fn from_rpc(rpc: RpcData) -> Result<Self, prost::DecodeError> {
         let method: QuicfsMethod = rpc.method.clone().into();
         match method {
-            QuicfsMethod::FSStat => decode_rpc!(FsStatResponse, rpc),
-            QuicfsMethod::Mount => decode_rpc!(MountResponse, rpc),
-            QuicfsMethod::Getattr => decode_rpc!(GetattrResponse, rpc),
-            QuicfsMethod::Readdir => decode_rpc!(ReaddirResponse, rpc),
-            QuicfsMethod::Read => decode_rpc!(ReadResponse, rpc),
+            QuicfsMethod::FSStat => decode_rpc(rpc).map(|v| Self::FSStat(v)),
+            QuicfsMethod::Mount => decode_rpc(rpc).map(|v| Self::Mount(v)),
+            QuicfsMethod::Getattr => decode_rpc(rpc).map(|v| Self::Getattr(v)),
+            QuicfsMethod::Readdir => decode_rpc(rpc).map(|v| Self::Readdir(v)),
+            QuicfsMethod::Read => decode_rpc(rpc).map(|v| Self::Read(v)),
             QuicfsMethod::Undefined => {
                 Err(
                     prost::DecodeError::new(
@@ -223,11 +224,11 @@ impl RpcCodec<QuicfsResponse> for QuicfsResponse {
     }
     fn to_rpc(&self) -> RpcData {
         match self {
-            Self::FsStatResponse(v) => encode_rpc!(QuicfsMethod::FSStat, v),
-            Self::MountResponse(v) => encode_rpc!(QuicfsMethod::Mount, v),
-            Self::GetattrResponse(v) => encode_rpc!(QuicfsMethod::Getattr, v),
-            Self::ReaddirResponse(v) => encode_rpc!(QuicfsMethod::Readdir, v),
-            Self::ReadResponse(v) => encode_rpc!(QuicfsMethod::Read, v),
+            Self::FSStat(v) => encode_rpc!(QuicfsMethod::FSStat, v),
+            Self::Mount(v) => encode_rpc!(QuicfsMethod::Mount, v),
+            Self::Getattr(v) => encode_rpc!(QuicfsMethod::Getattr, v),
+            Self::Readdir(v) => encode_rpc!(QuicfsMethod::Readdir, v),
+            Self::Read(v) => encode_rpc!(QuicfsMethod::Read, v),
         }
     }
 }

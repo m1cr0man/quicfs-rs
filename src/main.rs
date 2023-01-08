@@ -65,7 +65,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 println!("Connection with {} established", peer_id);
                 swarm.behaviour_mut().request_response.send_request(
                     &peer_id,
-                    QuicfsRequest::ReaddirRequest(ReaddirRequest {
+                    QuicfsRequest::Readdir(ReaddirRequest {
                         handle_id: "1".into(),
                     }),
                 );
@@ -83,8 +83,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         peer, request_id, request
                     );
                     match request {
-                        QuicfsRequest::ReaddirRequest(req) => {
-                            println!("Attempt to readdir {:?}", req.handle_id);
+                        QuicfsRequest::Readdir(ReaddirRequest { handle_id }) => {
+                            println!("Attempt to readdir {:?}", handle_id);
                             // Unfortunately request_response uses a oneshot queue
                             // internally so I can't use it to queue up multiple responses to the same
                             // request
@@ -94,7 +94,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 .request_response
                                 .send_response(
                                     channel,
-                                    QuicfsResponse::ReaddirResponse(ReaddirResponse {
+                                    QuicfsResponse::Readdir(ReaddirResponse {
                                         attributes: Vec::new(),
                                         eof: true,
                                         error: "".to_string(),
