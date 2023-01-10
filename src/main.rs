@@ -1,25 +1,204 @@
 use codec::QuicfsCodec;
+use futures::channel::{mpsc, oneshot};
 use futures::prelude::*;
+use futures::stream::StreamExt;
 use libp2p::request_response::ProtocolSupport;
 use libp2p::swarm::{NetworkBehaviour, Swarm, SwarmEvent};
 use libp2p::{
     core::muxing::StreamMuxerBox, identity, ping, quic, request_response, Multiaddr, PeerId,
     Transport,
 };
-use schema::quicfs::{QuicfsRequest, ReaddirRequest};
+use prost::bytes::Bytes;
+use schema::quicfs::{QuicfsRequest, QuicfsResponse};
 use std::error::Error;
+use std::sync::{Arc, Mutex};
 
-use crate::schema::quicfs::{QuicfsResponse, ReaddirResponse};
+use crate::schema::quicfs::ReaddirRequest;
+use crate::server::QuicfsServer;
 mod codec;
 mod schema;
 mod schema_helpers;
+mod server;
 // mod sharing;
 
 #[derive(NetworkBehaviour)]
 #[behaviour(inject_event = true)]
-struct QuicfsPeer {
+struct QuicfsPeerBehaviour {
     ping: ping::Behaviour,
     request_response: request_response::RequestResponse<QuicfsCodec>,
+}
+
+struct SwarmHandler {
+    swarm: Swarm<QuicfsPeerBehaviour>,
+}
+
+impl SwarmHandler {
+    async fn run_client(
+        mut self,
+        request_tx: mpsc::Sender<QuicfsRequest>,
+        mut request_rx: mpsc::Receiver<QuicfsRequest>,
+        mut response_tx: mpsc::Sender<QuicfsResponse>,
+    ) {
+        let mut peers = Vec::new();
+        let waiters: Arc<Mutex<Vec<oneshot::Sender<()>>>> = Arc::new(Mutex::new(Vec::new()));
+
+        loop {
+            futures::select! {
+                event = self.swarm.select_next_some() => match event {
+                    // Handle new listening addresses
+                    SwarmEvent::NewListenAddr { address, .. } => {
+                        println!("Listening on {:?}", address)
+                    }
+
+                    // Handle new connections
+                    SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+                        println!("Connection with {} established", peer_id);
+                        peers.push(peer_id);
+
+                        loop {
+                            match waiters.lock().unwrap().pop() {
+                                None => break,
+                                Some(tx) => {
+                                    if !tx.is_canceled() {
+                                        if let Err(err) = tx.send(()) {
+                                            println!("Error waking thread waiting for peer: {:?}", err)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Handle Request/Response events
+                    SwarmEvent::Behaviour(QuicfsPeerBehaviourEvent::RequestResponse(
+                        request_response::RequestResponseEvent::Message { peer, message },
+                    )) => match message {
+                        // Request
+                        request_response::RequestResponseMessage::Request {
+                            request_id,
+                            request,
+                            ..
+                        } => {
+                            println!(
+                                "{:?} has sent RPC request: {} {:?}",
+                                peer, request_id, request
+                            );
+                        }
+
+                        // Response
+                        request_response::RequestResponseMessage::Response {
+                            request_id,
+                            response,
+                        } => {
+                            println!(
+                                "{:?} has sent RPC response: {} {:?}",
+                                peer, request_id, response,
+                            );
+                            response_tx.send(response).await.unwrap();
+                        }
+                    },
+
+                    // All other requests
+                    evt => {
+                        println!("{:?}", evt)
+                    }
+                },
+                request = request_rx.select_next_some() => {
+                    match peers.get(0) {
+                        Some(peer) => {
+                            self.swarm.behaviour_mut().request_response.send_request(peer, request);
+                        },
+                        None => {
+                            let mut request_tx = request_tx.clone();
+                            let waiters = waiters.clone();
+                            async_std::task::spawn(async move {
+                                let (tx, rx) = oneshot::channel();
+                                waiters.lock().unwrap().push(tx);
+                                println!("Waiting for peer");
+                                rx.await.unwrap();
+                                request_tx.send(request).await.unwrap();
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    async fn run_server(mut self) {
+        let (mut request_tx, request_rx) = mpsc::channel(1024);
+        let (response_tx, mut response_rx) = mpsc::channel(1024);
+
+        async_std::task::spawn(QuicfsServer::new(request_rx, response_tx).run(Some(64)));
+
+        loop {
+            futures::select! {
+                event = self.swarm.select_next_some() => match event {
+                    // Handle new listening addresses
+                    SwarmEvent::NewListenAddr { address, .. } => {
+                        println!("Listening on {:?}", address)
+                    }
+
+                    // Handle new connections
+                    SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+                        println!("Connection with {} established", peer_id)
+                    }
+
+                    // Handle Request/Response events
+                    SwarmEvent::Behaviour(QuicfsPeerBehaviourEvent::RequestResponse(
+                        request_response::RequestResponseEvent::Message { peer, message },
+                    )) => match message {
+                        // Request
+                        request_response::RequestResponseMessage::Request {
+                            request_id,
+                            request,
+                            channel,
+                        } => {
+                            println!(
+                                "{:?} has sent RPC request: {} {:?}",
+                                peer, request_id, request
+                            );
+
+                            if let Err(err) = request_tx.send((channel, request)).await {
+                                println!("Failed to send query to server: {:?}", err);
+                            }
+                        }
+
+                        // Response
+                        request_response::RequestResponseMessage::Response {
+                            request_id,
+                            response,
+                        } => {
+                            println!(
+                                "{:?} has sent RPC response: {} {:?}",
+                                peer, request_id, response,
+                            );
+                        }
+                    },
+
+                    // All other requests
+                    evt => {
+                        println!("{:?}", evt)
+                    }
+                },
+
+                (channel, response) = response_rx.select_next_some() => match response {
+                    Ok(resp) => {
+                        if let Err(err) = self.swarm
+                            .behaviour_mut()
+                            .request_response
+                            .send_response(channel, resp)
+                        {
+                            println!("Failed to send response: {:?}", err);
+                        };
+                    }
+                    Err(err) => {
+                        println!("Error generating response: {:?}", err)
+                    }
+                },
+            }
+        }
+    }
 }
 
 #[async_std::main]
@@ -39,7 +218,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let qcodec = QuicfsCodec {};
 
-    let behaviour = QuicfsPeer {
+    let behaviour = QuicfsPeerBehaviour {
         request_response: request_response::RequestResponse::new(
             qcodec,
             [(codec::QuicfsProtocol {}, ProtocolSupport::Full)],
@@ -56,71 +235,29 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let remote: Multiaddr = addr.parse()?;
         swarm.dial(remote)?;
         println!("Dialed {}", addr);
+        let handler = SwarmHandler { swarm };
+
+        let (mut request_tx, request_rx) = mpsc::channel(64);
+        let (response_tx, mut response_rx) = mpsc::channel(64);
+
+        async_std::task::spawn(handler.run_client(request_tx.clone(), request_rx, response_tx));
+
+        request_tx
+            .send(QuicfsRequest::Readdir(ReaddirRequest {
+                handle_id: Bytes::from(b"1".to_vec()),
+            }))
+            .await
+            .expect("Failed to send request");
+        let resp = response_rx.next().await.expect("Failed to get response");
+
+        println!("Got response!!1!1! {:?}", resp);
+    } else {
+        let handler = SwarmHandler { swarm };
+        handler.run_server().await;
     }
 
-    loop {
-        match swarm.select_next_some().await {
-            SwarmEvent::NewListenAddr { address, .. } => println!("Listening on {:?}", address),
-            SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-                println!("Connection with {} established", peer_id);
-                swarm.behaviour_mut().request_response.send_request(
-                    &peer_id,
-                    QuicfsRequest::Readdir(ReaddirRequest {
-                        handle_id: "1".into(),
-                    }),
-                );
-            }
-            SwarmEvent::Behaviour(QuicfsPeerEvent::RequestResponse(
-                request_response::RequestResponseEvent::Message { peer, message },
-            )) => match message {
-                request_response::RequestResponseMessage::Request {
-                    request_id,
-                    request,
-                    channel,
-                } => {
-                    println!(
-                        "{:?} has sent RPC request: {} {:?}",
-                        peer, request_id, request
-                    );
-                    match request {
-                        QuicfsRequest::Readdir(ReaddirRequest { handle_id }) => {
-                            println!("Attempt to readdir {:?}", handle_id);
-                            // Unfortunately request_response uses a oneshot queue
-                            // internally so I can't use it to queue up multiple responses to the same
-                            // request
-                            // TODO generate an RpcData
-                            swarm
-                                .behaviour_mut()
-                                .request_response
-                                .send_response(
-                                    channel,
-                                    QuicfsResponse::Readdir(ReaddirResponse {
-                                        attributes: Vec::new(),
-                                        eof: true,
-                                        error: "".to_string(),
-                                        offset: 0,
-                                        size: 0,
-                                    }),
-                                )
-                                .expect("Failed to respond")
-                        }
-                        req => {
-                            println!("Unhandled RPC request {:?}", req);
-                        }
-                    };
-                }
-                request_response::RequestResponseMessage::Response {
-                    request_id,
-                    response,
-                } => {
-                    println!(
-                        "{:?} has sent RPC response: {} {:?}",
-                        peer, request_id, response,
-                    );
-                }
-            },
-            SwarmEvent::Behaviour(event) => println!("{:?}", event),
-            _ => {}
-        }
-    }
+    // The swarm is not sendable - we need to manage it in one place.
+    // If we tried to fork on each event we'd have a bad time, so instead keep all
+    // code to manage the swarm together in one task.
+    Ok(())
 }
